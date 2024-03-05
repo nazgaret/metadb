@@ -215,66 +215,72 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 	g, ctx := errgroup.WithContext(ctx)
 	for i := range consumers {
 		g.Go(func() error {
-			for {
-				cmdgraph := command.NewCommandGraph()
+			err := func() error {
+				for {
+					cmdgraph := command.NewCommandGraph()
 
-				// Parse
-				eventReadCount, err := parseChangeEvents(cat, pkerr, consumers[i], cmdgraph, spr.schemaPassFilter,
-					spr.schemaStopFilter, spr.tableStopFilter, spr.source.TrimSchemaPrefix,
-					spr.source.AddSchemaPrefix, sourceFileScanner, spr.sourceLog, spr.svr.db.CheckpointSegmentSize)
-				if err != nil {
-					return fmt.Errorf("parser: %v", err)
-				}
-
-				if firstEvent {
-					firstEvent = false
-					log.Debug("receiving data from source %q", spr.source.Name)
-				}
-
-				//// Rewrite
-
-				// TODO UNCOMMENT
-				if err = rewriteCommandGraph(cmdgraph, spr.svr.opt.RewriteJSON); err != nil {
-					return fmt.Errorf("rewriter: %s", err)
-				}
-
-				// Execute
-				if err = execCommandGraph(ctx, cat, cmdgraph, spr.svr.dp, spr.source.Name, syncMode); err != nil {
-					return fmt.Errorf("executor: %s", err)
-				}
-
-				if eventReadCount > 0 && sourceFileScanner == nil && !spr.svr.opt.NoKafkaCommit {
-					_, err = consumers[i].Commit()
+					// Parse
+					eventReadCount, err := parseChangeEvents(cat, pkerr, consumers[i], cmdgraph, spr.schemaPassFilter,
+						spr.schemaStopFilter, spr.tableStopFilter, spr.source.TrimSchemaPrefix,
+						spr.source.AddSchemaPrefix, sourceFileScanner, spr.sourceLog, spr.svr.db.CheckpointSegmentSize)
 					if err != nil {
-						e := err.(kafka.Error)
-						if e.IsFatal() {
-							//return fmt.Errorf("Kafka commit: %v", e)
-							log.Warning("Kafka commit: %v", e)
-						} else {
-							switch e.Code() {
-							case kafka.ErrNoOffset:
-								log.Debug("Kafka commit: %v", e)
-							default:
-								log.Info("Kafka commit: %v", e)
+						return fmt.Errorf("parser: %v", err)
+					}
+
+					if firstEvent {
+						firstEvent = false
+						log.Debug("receiving data from source %q", spr.source.Name)
+					}
+
+					//// Rewrite
+
+					// TODO UNCOMMENT
+					if err = rewriteCommandGraph(cmdgraph, spr.svr.opt.RewriteJSON); err != nil {
+						return fmt.Errorf("rewriter: %s", err)
+					}
+
+					// Execute
+					if err = execCommandGraph(ctx, cat, cmdgraph, spr.svr.dp, spr.source.Name, syncMode); err != nil {
+						return fmt.Errorf("executor: %s", err)
+					}
+
+					if eventReadCount > 0 && sourceFileScanner == nil && !spr.svr.opt.NoKafkaCommit {
+						_, err = consumers[i].Commit()
+						if err != nil {
+							e := err.(kafka.Error)
+							if e.IsFatal() {
+								//return fmt.Errorf("Kafka commit: %v", e)
+								log.Warning("Kafka commit: %v", e)
+							} else {
+								switch e.Code() {
+								case kafka.ErrNoOffset:
+									log.Debug("Kafka commit: %v", e)
+								default:
+									log.Info("Kafka commit: %v", e)
+								}
 							}
 						}
 					}
+
+					if eventReadCount > 0 {
+						log.Debug("checkpoint: events=%d, commands=%d", eventReadCount, cmdgraph.Commands.Len())
+					}
+
+					// Check if resync snapshot may have completed.
+
+					// TODO UNCOMMENT
+					if syncMode != dsync.NoSync && spr.source.Status.Get() == status.ActiveStatus && cat.HoursSinceLastSnapshotRecord() > 3.0 {
+						log.Info("source %q snapshot complete (deadline exceeded); consider running \"metadb endsync\"",
+							spr.source.Name)
+						cat.ResetLastSnapshotRecord() // Sync timer.
+					}
 				}
+			}()
 
-				// we read by one and it's totally broke when use debug flag
-				//if eventReadCount > 0 {
-				//	log.Debug("checkpoint: events=%d, commands=%d", eventReadCount, cmdgraph.Commands.Len())
-				//}
-
-				// Check if resync snapshot may have completed.
-
-				// TODO UNCOMMENT
-				if syncMode != dsync.NoSync && spr.source.Status.Get() == status.ActiveStatus && cat.HoursSinceLastSnapshotRecord() > 3.0 {
-					log.Info("source %q snapshot complete (deadline exceeded); consider running \"metadb endsync\"",
-						spr.source.Name)
-					cat.ResetLastSnapshotRecord() // Sync timer.
-				}
+			if err != nil {
+				ctx.Done()
 			}
+			return err
 		})
 	}
 
