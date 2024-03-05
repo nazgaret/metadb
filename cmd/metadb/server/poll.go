@@ -214,13 +214,14 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 
 	g, ctx := errgroup.WithContext(ctx)
 	for i := range consumers {
+		index := i
 		g.Go(func() error {
 			err := func() error {
 				for {
 					cmdgraph := command.NewCommandGraph()
 
 					// Parse
-					eventReadCount, err := parseChangeEvents(cat, pkerr, consumers[i], cmdgraph, spr.schemaPassFilter,
+					eventReadCount, err := parseChangeEvents(cat, pkerr, consumers[index], cmdgraph, spr.schemaPassFilter,
 						spr.schemaStopFilter, spr.tableStopFilter, spr.source.TrimSchemaPrefix,
 						spr.source.AddSchemaPrefix, sourceFileScanner, spr.sourceLog, spr.svr.db.CheckpointSegmentSize)
 					if err != nil {
@@ -246,8 +247,8 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 
 					if eventReadCount > 0 && sourceFileScanner == nil && !spr.svr.opt.NoKafkaCommit {
 						log.Debug("Commit message")
-						log.Debug("Num=%d, Consumer:%q", i, consumers[i])
-						_, err = consumers[i].Commit()
+						log.Debug("Num=%d, Consumer:%q", index, consumers[index])
+						_, err = consumers[index].Commit()
 						if err != nil {
 							e := err.(kafka.Error)
 							if e.IsFatal() {
@@ -265,7 +266,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 					}
 
 					if eventReadCount > 0 {
-						log.Debug("checkpoint: events=%d, commands=%d, consumer=%d", eventReadCount, cmdgraph.Commands.Len(), i)
+						log.Debug("checkpoint: events=%d, commands=%d, consumer=%d", eventReadCount, cmdgraph.Commands.Len(), index)
 					}
 
 					// Check if resync snapshot may have completed.
