@@ -245,6 +245,8 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 					}
 
 					if eventReadCount > 0 && sourceFileScanner == nil && !spr.svr.opt.NoKafkaCommit {
+						log.Debug("Commit message")
+						log.Debug("Num=%d, Consumer:%q", i, consumers[i])
 						_, err = consumers[i].Commit()
 						if err != nil {
 							e := err.(kafka.Error)
@@ -263,7 +265,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 					}
 
 					if eventReadCount > 0 {
-						log.Debug("checkpoint: events=%d, commands=%d", eventReadCount, cmdgraph.Commands.Len())
+						log.Debug("checkpoint: events=%d, commands=%d, consumer=%d", eventReadCount, cmdgraph.Commands.Len(), i)
 					}
 
 					// Check if resync snapshot may have completed.
@@ -274,6 +276,9 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 							spr.source.Name)
 						cat.ResetLastSnapshotRecord() // Sync timer.
 					}
+
+					//todo remove
+					time.Sleep(1 * time.Minute)
 				}
 			}()
 
@@ -535,6 +540,11 @@ func readChangeEvent(consumer *kafka.Consumer, sourceLog *log.SourceLog, kafkaPo
 	if ev == nil {
 		return nil, nil
 	}
+
+	//todo remove
+	log.Debug("readChangeEvent")
+	log.Debug("Consumer: ", consumer)
+
 	switch e := ev.(type) {
 	case *kafka.Message:
 		msg := e
