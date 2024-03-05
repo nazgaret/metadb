@@ -278,7 +278,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 						cat.ResetLastSnapshotRecord() // Sync timer.
 					}
 
-					//todo remove
+					//TODO remove
 					time.Sleep(1 * time.Minute)
 				}
 			}()
@@ -544,7 +544,7 @@ func readChangeEvent(consumer *kafka.Consumer, sourceLog *log.SourceLog, kafkaPo
 
 	//todo remove
 	log.Debug("readChangeEvent")
-	log.Debug("Consumer: ", consumer)
+	log.Debug("Consumer: %q", consumer)
 
 	switch e := ev.(type) {
 	case *kafka.Message:
