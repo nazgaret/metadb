@@ -246,8 +246,8 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 					}
 
 					if eventReadCount > 0 && sourceFileScanner == nil && !spr.svr.opt.NoKafkaCommit {
-						log.Debug("Commit message")
-						log.Debug("Num=%d, Consumer:%q", index, consumers[index])
+						//log.Debug("Commit message")
+						//log.Debug("Num=%d, Consumer:%q", index, consumers[index])
 						_, err = consumers[index].Commit()
 						if err != nil {
 							e := err.(kafka.Error)
@@ -265,9 +265,9 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 						}
 					}
 
-					if eventReadCount > 0 {
-						log.Debug("checkpoint: events=%d, commands=%d, consumer=%d", eventReadCount, cmdgraph.Commands.Len(), index)
-					}
+					//if eventReadCount > 0 {
+					//	log.Debug("checkpoint: events=%d, commands=%d, consumer=%d", eventReadCount, cmdgraph.Commands.Len(), index)
+					//}
 
 					// Check if resync snapshot may have completed.
 
@@ -279,7 +279,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 					}
 
 					//TODO remove
-					time.Sleep(1 * time.Minute)
+					//time.Sleep(1 * time.Minute)
 				}
 			}()
 
@@ -361,7 +361,6 @@ func createKafkaConsumers(spr *sproc) ([]*kafka.Consumer, error) {
 		}
 	}
 
-	log.Debug("connecting to source %q", spr.source.Name)
 	for i, topics := range topicsByConsumer {
 		if len(topics) == 0 {
 			break // if we have less than 20 topics limit the consumers
@@ -398,7 +397,6 @@ func createKafkaConsumers(spr *sproc) ([]*kafka.Consumer, error) {
 			return nil, err
 		}
 
-		log.Debug("connecting to source %q", spr.source.Name)
 		//err = consumer.SubscribeTopics([]string{"^" + topicPrefix + "[.].*"}, nil)
 		err = consumer.SubscribeTopics(topics, nil)
 		if err != nil {
@@ -541,11 +539,6 @@ func readChangeEvent(consumer *kafka.Consumer, sourceLog *log.SourceLog, kafkaPo
 	if ev == nil {
 		return nil, nil
 	}
-
-	//todo remove
-	log.Debug("readChangeEvent")
-	log.Debug("Consumer: %q", consumer)
-
 	switch e := ev.(type) {
 	case *kafka.Message:
 		msg := e
