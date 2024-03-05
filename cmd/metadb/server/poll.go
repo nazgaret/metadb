@@ -12,10 +12,12 @@ import (
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/jackc/pgx/v5"
+	"github.com/nazgaret/metadb/cmd/internal/status"
 	"github.com/nazgaret/metadb/cmd/metadb/catalog"
 	"github.com/nazgaret/metadb/cmd/metadb/change"
 	"github.com/nazgaret/metadb/cmd/metadb/command"
 	"github.com/nazgaret/metadb/cmd/metadb/dbx"
+	"github.com/nazgaret/metadb/cmd/metadb/dsync"
 	"github.com/nazgaret/metadb/cmd/metadb/log"
 	"github.com/nazgaret/metadb/cmd/metadb/process"
 	"github.com/nazgaret/metadb/cmd/metadb/sysdb"
@@ -134,10 +136,10 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 
 	// TODO UNCOMMENT
 
-	//dc, err := spr.svr.db.Connect()
-	//if err != nil {
-	//	return err
-	//}
+	dc, err := spr.svr.db.Connect()
+	if err != nil {
+		return err
+	}
 	dcsuper, err := spr.svr.db.ConnectSuper()
 	if err != nil {
 		return err
@@ -176,10 +178,10 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 	// Read sync mode from the database.
 
 	// TODO uncomment !!!
-	//syncMode, err := dsync.ReadSyncMode(dc, spr.source.Name)
-	//if err != nil {
-	//	log.Error("unable to read sync mode: %v", err)
-	//}
+	syncMode, err := dsync.ReadSyncMode(dc, spr.source.Name)
+	if err != nil {
+		log.Error("unable to read sync mode: %v", err)
+	}
 
 	// Source file
 	var sourceFile *os.File
@@ -203,8 +205,6 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 		}
 		spr.source.Status.Active()
 	}
-
-	time.Sleep(5 * time.Minute) // todo remove after test
 
 	waitUserPerms.Wait()
 	// pkerr keeps track of "primary key not defined" errors that have been logged, in order to reduce duplication
@@ -234,14 +234,14 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 				//// Rewrite
 
 				// TODO UNCOMMENT
-				//if err = rewriteCommandGraph(cmdgraph, spr.svr.opt.RewriteJSON); err != nil {
-				//	return fmt.Errorf("rewriter: %s", err)
-				//}
-				//
-				//// Execute
-				//if err = execCommandGraph(ctx, cat, cmdgraph, spr.svr.dp, spr.source.Name, syncMode); err != nil {
-				//	return fmt.Errorf("executor: %s", err)
-				//}
+				if err = rewriteCommandGraph(cmdgraph, spr.svr.opt.RewriteJSON); err != nil {
+					return fmt.Errorf("rewriter: %s", err)
+				}
+
+				// Execute
+				if err = execCommandGraph(ctx, cat, cmdgraph, spr.svr.dp, spr.source.Name, syncMode); err != nil {
+					return fmt.Errorf("executor: %s", err)
+				}
 
 				if eventReadCount > 0 && sourceFileScanner == nil && !spr.svr.opt.NoKafkaCommit {
 					_, err = consumers[i].Commit()
@@ -269,11 +269,11 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 				// Check if resync snapshot may have completed.
 
 				// TODO UNCOMMENT
-				//if syncMode != dsync.NoSync && spr.source.Status.Get() == status.ActiveStatus && cat.HoursSinceLastSnapshotRecord() > 3.0 {
-				//	log.Info("source %q snapshot complete (deadline exceeded); consider running \"metadb endsync\"",
-				//		spr.source.Name)
-				//	cat.ResetLastSnapshotRecord() // Sync timer.
-				//}
+				if syncMode != dsync.NoSync && spr.source.Status.Get() == status.ActiveStatus && cat.HoursSinceLastSnapshotRecord() > 3.0 {
+					log.Info("source %q snapshot complete (deadline exceeded); consider running \"metadb endsync\"",
+						spr.source.Name)
+					cat.ResetLastSnapshotRecord() // Sync timer.
+				}
 			}
 		})
 	}
