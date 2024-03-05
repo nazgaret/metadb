@@ -261,9 +261,10 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 					}
 				}
 
-				if eventReadCount > 0 {
-					log.Debug("checkpoint: events=%d, commands=%d", eventReadCount, cmdgraph.Commands.Len())
-				}
+				// we read by one and it's totally broke when use debug flag
+				//if eventReadCount > 0 {
+				//	log.Debug("checkpoint: events=%d, commands=%d", eventReadCount, cmdgraph.Commands.Len())
+				//}
 
 				// Check if resync snapshot may have completed.
 
