@@ -206,6 +206,14 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 		spr.source.Status.Active()
 	}
 
+	defer func() {
+		// close all consumers
+		for _, consumer := range consumers {
+			err := consumer.Close()
+			log.Warning("consumer closing error: %q", err)
+		}
+	}()
+
 	waitUserPerms.Wait()
 	// pkerr keeps track of "primary key not defined" errors that have been logged, in order to reduce duplication
 	// of the error messages.
@@ -292,11 +300,6 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 
 	// wait till the all groups end work
 	err = g.Wait()
-
-	// close all consumers
-	for _, consumer := range consumers {
-		_ = consumer.Close()
-	}
 
 	return err
 }
