@@ -305,14 +305,64 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 		})
 	}
 
+	// print the number of the messages still not processed for every topic
+	countUnreadMessagesNumber(g, consumers)
+
 	// wait till the all groups end work
 	err = g.Wait()
 
 	return err
 }
 
-// getTopicsMatchedTheRegexp get all topics matched provided regexPattern and bootstrap servers
-func getTopicsMatchedTheRegexp(bootstrapServers, regexPattern string) ([]string, error) {
+func countUnreadMessagesNumber(g *errgroup.Group, consumers []*kafka.Consumer) {
+	g.Go(func() error {
+		for {
+			time.Sleep(time.Minute)
+
+			for _, c := range consumers {
+				topicPartitions, err := c.Assignment()
+				if err != nil {
+					return err
+				}
+
+				for _, topicPartition := range topicPartitions {
+					high, _, err := c.QueryWatermarkOffsets(*topicPartition.Topic, topicPartition.Partition, 5000)
+					if err != nil {
+						return err
+					}
+
+					committedOffsets, err := c.Committed([]kafka.TopicPartition{{Topic: topicPartition.Topic, Partition: topicPartition.Partition}}, 5000)
+					if err != nil {
+						return err
+					}
+
+					lastOffset := committedOffsets[0].Offset
+					remaining := high - int64(lastOffset)
+
+					log.Debug("Topic: %s, Partition: %d, Remaining messages: %d\n", *topicPartition.Topic, topicPartition.Partition, remaining)
+				}
+			}
+		}
+	})
+}
+
+// getTopicsNamesMatchedTheRegexp get all topics names matched provided regexPattern and bootstrap servers
+func getTopicsNamesMatchedTheRegexp(bootstrapServers, regexPattern string) ([]string, error) {
+	topicsMetadata, err := getTopicsMatchedTheRegexp(bootstrapServers, regexPattern)
+	if err != nil {
+		return nil, err
+	}
+
+	var result = make([]string, len(topicsMetadata))
+	for i, topic := range topicsMetadata {
+		result[i] = topic.Topic
+	}
+
+	return result, nil
+}
+
+// getTopicsMatchedTheRegexp get all topics metadata matched provided regexPattern and bootstrap servers
+func getTopicsMatchedTheRegexp(bootstrapServers string, regexPattern string) ([]kafka.TopicMetadata, error) {
 	config := &kafka.ConfigMap{
 		"bootstrap.servers": bootstrapServers,
 		"client.id":         "kafka-topic-lister",
@@ -337,13 +387,12 @@ func getTopicsMatchedTheRegexp(bootstrapServers, regexPattern string) ([]string,
 	}
 
 	// Filter topics matching the regex pattern
-	var result []string
+	var result []kafka.TopicMetadata
 	for _, topic := range metadata.Topics {
 		if pattern.MatchString(topic.Topic) {
-			result = append(result, topic.Topic)
+			result = append(result, topic)
 		}
 	}
-
 	return result, nil
 }
 
@@ -356,7 +405,7 @@ func createKafkaConsumers(spr *sproc) ([]*kafka.Consumer, error) {
 		topicsByConsumer = make([][]string, consumersNum)
 	)
 
-	topics, err = getTopicsMatchedTheRegexp(spr.source.Brokers, spr.source.Topics[0])
+	topics, err = getTopicsNamesMatchedTheRegexp(spr.source.Brokers, spr.source.Topics[0])
 	if err != nil {
 		spr.source.Status.Error()
 		return nil, err
