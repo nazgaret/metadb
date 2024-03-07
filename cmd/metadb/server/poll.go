@@ -207,10 +207,17 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 	}
 
 	defer func() {
+		var crashed bool
 		// close all consumers
 		for _, consumer := range consumers {
-			err := consumer.Close()
-			log.Warning("consumer closing error: %q", err)
+			if err := consumer.Close(); err != nil {
+				log.Warning("consumer closing error: %q", err)
+				crashed = true
+			}
+		}
+
+		if !crashed {
+			log.Debug("consumers closed as expected")
 		}
 	}()
 
