@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -14,12 +13,13 @@ import (
 	"github.com/nazgaret/metadb/cmd/metadb/dbx"
 	"github.com/nazgaret/metadb/cmd/metadb/log"
 	"github.com/nazgaret/metadb/cmd/metadb/util"
+	"github.com/sasha-s/go-deadlock"
 )
 
 var catalogSchema = "metadb"
 
 type Catalog struct {
-	mu                 sync.Mutex
+	mu                 deadlock.Mutex
 	tableDir           map[dbx.Table]tableEntry
 	partYears          map[string]map[int]struct{}
 	users              map[string]*util.RegexList

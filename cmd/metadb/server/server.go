@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"runtime/debug"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -28,6 +27,7 @@ import (
 	"github.com/nazgaret/metadb/cmd/metadb/sqlfunc"
 	"github.com/nazgaret/metadb/cmd/metadb/sysdb"
 	"github.com/nazgaret/metadb/cmd/metadb/util"
+	"github.com/sasha-s/go-deadlock"
 )
 
 // The server thread handling needs to be reworked.  It currently runs an HTTP
@@ -44,7 +44,7 @@ type server struct {
 
 // serverstate is shared between goroutines.
 type serverstate struct {
-	mu        sync.Mutex
+	mu        deadlock.Mutex
 	databases []*sysdb.DatabaseConnector
 	sources   []*sysdb.SourceConnector
 }
