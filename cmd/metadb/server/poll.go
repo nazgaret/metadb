@@ -238,9 +238,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 					cmdgraph := command.NewCommandGraph()
 
 					ass, _ := consumers[index].Assignment()
-					for _, partition := range ass {
-						log.Debug("consumer: %q, topic: %q offset %q", consumers[index], *partition.Topic, partition.Offset)
-					}
+					ass, _ = consumers[index].Committed(ass, 5000)
 
 					// Parse
 					eventReadCount, err := parseChangeEvents(cat, pkerr, consumers[index], cmdgraph, spr.schemaPassFilter,
@@ -265,9 +263,10 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 						return fmt.Errorf("executor: %s", err)
 					}
 
+					var offset []kafka.TopicPartition
 					if eventReadCount > 0 && sourceFileScanner == nil && !spr.svr.opt.NoKafkaCommit {
 						log.Debug("commit start, consumer: %q", consumers[index])
-						_, err := consumers[index].Commit()
+						offset, err = consumers[index].Commit()
 						if err != nil {
 							e := err.(kafka.Error)
 							if e.IsFatal() {
@@ -285,7 +284,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 						log.Debug("commit end successfully, consumer: %q", consumers[index])
 					}
 
-					ass2, _ := consumers[index].Assignment()
+					ass2, _ := consumers[index].Committed(offset, 5000)
 					mapAssignment := make(map[string]kafka.Offset)
 					for _, partition := range ass {
 						mapAssignment[*partition.Topic] = partition.Offset
