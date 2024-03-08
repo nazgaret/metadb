@@ -261,8 +261,6 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 					}
 
 					if eventReadCount > 0 && sourceFileScanner == nil && !spr.svr.opt.NoKafkaCommit {
-						log.Debug("Commit message")
-						log.Debug("Num=%d, Consumer:%q", index, consumers[index])
 						_, err := consumers[index].Commit()
 						if err != nil {
 							e := err.(kafka.Error)
