@@ -134,8 +134,6 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 	//}
 	//////////////////////////////////////////////////////////////////////////////
 
-	// TODO UNCOMMENT
-
 	dc, err := spr.svr.db.Connect()
 	if err != nil {
 		return err
@@ -177,7 +175,6 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 	*/
 	// Read sync mode from the database.
 
-	// TODO uncomment !!!
 	syncMode, err := dsync.ReadSyncMode(dc, spr.source.Name)
 	if err != nil {
 		log.Error("unable to read sync mode: %v", err)
@@ -249,8 +246,6 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 					}
 
 					//// Rewrite
-
-					// TODO UNCOMMENT
 					if err = rewriteCommandGraph(cmdgraph, spr.svr.opt.RewriteJSON); err != nil {
 						return fmt.Errorf("rewriter: %s", err)
 					}
@@ -279,19 +274,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 
 					}
 
-					//TODO remove
-					_, err = countUnreadMessagesNumber(consumers[index])
-					if err != nil {
-						return err
-					}
-
-					//if eventReadCount > 0 {
-					//	log.Debug("checkpoint: events=%d, commands=%d, consumer=%d", eventReadCount, cmdgraph.Commands.Len(), index)
-					//}
-
 					// Check if resync snapshot may have completed.
-
-					// TODO UNCOMMENT
 					if syncMode != dsync.NoSync && spr.source.Status.Get() == status.ActiveStatus && cat.HoursSinceLastSnapshotRecord() > 3.0 {
 						log.Info("source %q snapshot complete (deadline exceeded); consider running \"metadb endsync\"",
 							spr.source.Name)
@@ -308,7 +291,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 	}
 
 	// print the number of the messages still not processed for every topic
-	startUnreadMessagesPrinter(g, consumers, time.Minute) //todo make configurable
+	startUnreadMessagesPrinter(g, consumers, 5*time.Minute) //todo make configurable
 
 	// wait till the all groups end work
 	err = g.Wait()
@@ -346,7 +329,7 @@ func startUnreadMessagesPrinter(g *errgroup.Group, consumers []*kafka.Consumer, 
 					duration = endTime.Sub(startTime)
 				}
 
-				log.Warning("All messages was readed in %q", duration)
+				log.Warning("All messages was read in %q", duration)
 			}
 		}
 	})
