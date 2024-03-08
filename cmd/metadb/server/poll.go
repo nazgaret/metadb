@@ -287,8 +287,6 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 							spr.source.Name)
 						cat.ResetLastSnapshotRecord() // Sync timer.
 					}
-					//todo remove
-					time.Sleep(time.Second * 30)
 				}
 			}()
 
