@@ -228,7 +228,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 	g, ctx := errgroup.WithContext(ctx)
 
 	//todo remove
-	consumers = consumers[:1]
+	//consumers = consumers[:1]
 
 	for i := range consumers {
 		index := i
