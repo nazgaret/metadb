@@ -228,7 +228,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 	g, ctx := errgroup.WithContext(ctx)
 
 	//todo remove
-	//consumers = consumers[:1]
+	consumers = consumers[:4]
 
 	for i := range consumers {
 		index := i
@@ -236,6 +236,11 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 			err := func() error {
 				for {
 					cmdgraph := command.NewCommandGraph()
+
+					ass, _ := consumers[index].Assignment()
+					for _, partition := range ass {
+						log.Debug("consumer: %q, topic: %q offset %q", consumers[index], *partition.Topic, partition.Offset)
+					}
 
 					// Parse
 					eventReadCount, err := parseChangeEvents(cat, pkerr, consumers[index], cmdgraph, spr.schemaPassFilter,
@@ -261,6 +266,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 					}
 
 					if eventReadCount > 0 && sourceFileScanner == nil && !spr.svr.opt.NoKafkaCommit {
+						log.Debug("commit start, consumer: %q", consumers[index])
 						_, err := consumers[index].Commit()
 						if err != nil {
 							e := err.(kafka.Error)
@@ -276,7 +282,20 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 								}
 							}
 						}
+						log.Debug("commit end successfully, consumer: %q", consumers[index])
+					}
 
+					ass2, _ := consumers[index].Assignment()
+					mapAssignment := make(map[string]kafka.Offset)
+					for _, partition := range ass {
+						mapAssignment[*partition.Topic] = partition.Offset
+					}
+
+					for _, partition := range ass2 {
+						if val, ok := mapAssignment[*partition.Topic]; !ok || val != partition.Offset {
+							log.Debug("commit successfully, message offset changes for:\n-------->"+
+								" consumer%q, topic: %q, from: %q, to: %q", consumers[index], *partition.Topic, val, partition.Offset)
+						}
 					}
 
 					// Check if resync snapshot may have completed.
@@ -285,6 +304,9 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 							spr.source.Name)
 						cat.ResetLastSnapshotRecord() // Sync timer.
 					}
+
+					//todo remove
+					time.Sleep(45 * time.Second)
 				}
 			}()
 
