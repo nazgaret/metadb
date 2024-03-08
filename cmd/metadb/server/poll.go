@@ -265,7 +265,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 
 					//var offset []kafka.TopicPartition
 					if eventReadCount > 0 && sourceFileScanner == nil && !spr.svr.opt.NoKafkaCommit {
-						log.Debug("commit start, consumer: %q", consumers[index])
+						//log.Debug("commit start, consumer: %q", consumers[index])
 						_, err = consumers[index].Commit()
 						if err != nil {
 							e := err.(kafka.Error)
@@ -303,9 +303,9 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 							spr.source.Name)
 						cat.ResetLastSnapshotRecord() // Sync timer.
 					}
-
-					//todo remove
-					time.Sleep(30 * time.Second)
+					//
+					////todo remove
+					//time.Sleep(30 * time.Second)
 				}
 			}()
 
@@ -317,7 +317,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 	}
 
 	// print the number of the messages still not processed for every topic
-	startUnreadMessagesPrinter(g, consumers, time.Minute) //todo make configurable
+	startUnreadMessagesPrinter(g, consumers, 2*time.Minute) //todo make configurable
 
 	// wait till the all groups end work
 	err = g.Wait()
@@ -393,9 +393,9 @@ func countUnreadMessagesNumber(c *kafka.Consumer) (int64, error) {
 		remaining := high - int64(lastOffset)
 
 		//todo remove
-		if lastOffset != 0 && int64(lastOffset) != high {
-			log.Debug("Topic: %s, Partition: %d,\n High: %d, Offset:%d,\n Remaining messages: %d", *topicPartition.Topic, topicPartition.Partition, high, lastOffset, remaining)
-		}
+		//if lastOffset != 0 && int64(lastOffset) != high {
+		//	log.Debug("Topic: %s, Partition: %d,\n High: %d, Offset:%d,\n Remaining messages: %d", *topicPartition.Topic, topicPartition.Partition, high, lastOffset, remaining)
+		//}
 
 		result = result + remaining
 	}
