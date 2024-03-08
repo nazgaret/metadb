@@ -228,12 +228,22 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 	var firstEvent = true
 
 	g, ctx := errgroup.WithContext(ctx)
+
+	//todo remove
+	consumers = consumers[:1]
+
 	for i := range consumers {
 		index := i
 		g.Go(func() error {
 			err := func() error {
 				for {
+
 					cmdgraph := command.NewCommandGraph()
+
+					_, err := countUnreadMessagesNumber(consumers[index])
+					if err != nil {
+						return err
+					}
 
 					// Parse
 					eventReadCount, err := parseChangeEvents(cat, pkerr, consumers[index], cmdgraph, spr.schemaPassFilter,
@@ -246,6 +256,11 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 					if firstEvent {
 						firstEvent = false
 						log.Debug("receiving data from source %q", spr.source.Name)
+					}
+
+					_, err = countUnreadMessagesNumber(consumers[index])
+					if err != nil {
+						return err
 					}
 
 					//// Rewrite
@@ -261,9 +276,9 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 					}
 
 					if eventReadCount > 0 && sourceFileScanner == nil && !spr.svr.opt.NoKafkaCommit {
-						//log.Debug("Commit message")
-						//log.Debug("Num=%d, Consumer:%q", index, consumers[index])
-						_, err = consumers[index].Commit()
+						log.Debug("Commit message")
+						log.Debug("Num=%d, Consumer:%q", index, consumers[index])
+						offsets, err := consumers[index].Commit()
 						if err != nil {
 							e := err.(kafka.Error)
 							if e.IsFatal() {
@@ -278,6 +293,15 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 								}
 							}
 						}
+
+						for _, partition := range offsets {
+							log.Debug("Topic=%s, Offset=%q,\n Metadata=%q,\n Consumer:%q", partition.String(), partition.Offset.String(), partition.Metadata, consumers[index])
+						}
+					}
+
+					_, err = countUnreadMessagesNumber(consumers[index])
+					if err != nil {
+						return err
 					}
 
 					//if eventReadCount > 0 {
@@ -294,7 +318,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 					}
 
 					//TODO remove
-					//time.Sleep(1 * time.Minute)
+					time.Sleep(2 * time.Minute)
 				}
 			}()
 
@@ -306,7 +330,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 	}
 
 	// print the number of the messages still not processed for every topic
-	countUnreadMessagesNumber(g, consumers)
+	//countUnreadMessagesNumber(g, consumers) todo uncomment
 
 	// wait till the all groups end work
 	err = g.Wait()
@@ -314,36 +338,47 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 	return err
 }
 
-func countUnreadMessagesNumber(g *errgroup.Group, consumers []*kafka.Consumer) {
+func startUnreadMessagesPrinter(g *errgroup.Group, consumers []*kafka.Consumer) {
 	g.Go(func() error {
 		for {
 			time.Sleep(time.Minute)
 
 			for _, c := range consumers {
-				topicPartitions, err := c.Assignment()
-				if err != nil {
-					return err
-				}
-
-				for _, topicPartition := range topicPartitions {
-					high, _, err := c.QueryWatermarkOffsets(*topicPartition.Topic, topicPartition.Partition, 5000)
-					if err != nil {
-						return err
-					}
-
-					committedOffsets, err := c.Committed([]kafka.TopicPartition{{Topic: topicPartition.Topic, Partition: topicPartition.Partition}}, 5000)
-					if err != nil {
-						return err
-					}
-
-					lastOffset := committedOffsets[0].Offset
-					remaining := high - int64(lastOffset)
-
-					log.Debug("Topic: %s, Partition: %d, Remaining messages: %d\n", *topicPartition.Topic, topicPartition.Partition, remaining)
+				_, err2 := countUnreadMessagesNumber(c)
+				if err2 != nil {
+					return err2
 				}
 			}
 		}
 	})
+}
+
+func countUnreadMessagesNumber(c *kafka.Consumer) (int64, error) {
+	topicPartitions, err := c.Assignment()
+	if err != nil {
+		return 0, err
+	}
+
+	var result int64
+	for _, topicPartition := range topicPartitions {
+		high, _, err := c.QueryWatermarkOffsets(*topicPartition.Topic, topicPartition.Partition, 5000)
+		if err != nil {
+			return 0, err
+		}
+
+		committedOffsets, err := c.Committed([]kafka.TopicPartition{{Topic: topicPartition.Topic, Partition: topicPartition.Partition}}, 5000)
+		if err != nil {
+			return 0, err
+		}
+
+		lastOffset := committedOffsets[0].Offset
+		remaining := high - int64(lastOffset)
+
+		log.Debug("Topic: %s, Partition: %d,\n High: %d, Offset:%d,\n Remaining messages: %d", *topicPartition.Topic, topicPartition.Partition, high, lastOffset, remaining)
+
+		result = result + remaining
+	}
+	return result, nil
 }
 
 // getTopicsNamesMatchedTheRegexp get all topics names matched provided regexPattern and bootstrap servers
