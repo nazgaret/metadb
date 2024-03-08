@@ -375,7 +375,10 @@ func countUnreadMessagesNumber(c *kafka.Consumer) (int64, error) {
 
 		remaining := high - int64(lastOffset)
 
-		log.Debug("Topic: %s, Partition: %d,\n High: %d, Offset:%d,\n Remaining messages: %d", *topicPartition.Topic, topicPartition.Partition, high, lastOffset, remaining)
+		//todo remove
+		if lastOffset != 0 {
+			log.Debug("Topic: %s, Partition: %d,\n High: %d, Offset:%d,\n Remaining messages: %d", *topicPartition.Topic, topicPartition.Partition, high, lastOffset, remaining)
+		}
 
 		result = result + remaining
 	}
