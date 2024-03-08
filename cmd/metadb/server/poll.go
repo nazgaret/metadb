@@ -228,7 +228,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 	g, ctx := errgroup.WithContext(ctx)
 
 	//todo remove
-	consumers = consumers[:4]
+	//consumers = consumers[:4]
 
 	for i := range consumers {
 		index := i
@@ -236,9 +236,9 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 			err := func() error {
 				for {
 					cmdgraph := command.NewCommandGraph()
-
-					ass, _ := consumers[index].Assignment()
-					ass, _ = consumers[index].Committed(ass, 5000)
+					//
+					//ass, _ := consumers[index].Assignment()
+					//ass, _ = consumers[index].Committed(ass, 5000)
 
 					// Parse
 					eventReadCount, err := parseChangeEvents(cat, pkerr, consumers[index], cmdgraph, spr.schemaPassFilter,
@@ -263,10 +263,10 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 						return fmt.Errorf("executor: %s", err)
 					}
 
-					var offset []kafka.TopicPartition
+					//var offset []kafka.TopicPartition
 					if eventReadCount > 0 && sourceFileScanner == nil && !spr.svr.opt.NoKafkaCommit {
 						log.Debug("commit start, consumer: %q", consumers[index])
-						offset, err = consumers[index].Commit()
+						_, err = consumers[index].Commit()
 						if err != nil {
 							e := err.(kafka.Error)
 							if e.IsFatal() {
@@ -283,19 +283,19 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 						}
 						log.Debug("commit end successfully, consumer: %q", consumers[index])
 					}
-
-					ass2, _ := consumers[index].Committed(offset, 5000)
-					mapAssignment := make(map[string]kafka.Offset)
-					for _, partition := range ass {
-						mapAssignment[*partition.Topic] = partition.Offset
-					}
-
-					for _, partition := range ass2 {
-						if val, ok := mapAssignment[*partition.Topic]; !ok || val != partition.Offset {
-							log.Debug("commit successfully, message offset changes for:\n-------->"+
-								" consumer%q, topic: %q, from: %q, to: %q", consumers[index], *partition.Topic, val, partition.Offset)
-						}
-					}
+					//
+					//ass2, _ := consumers[index].Committed(offset, 5000)
+					//mapAssignment := make(map[string]kafka.Offset)
+					//for _, partition := range ass {
+					//	mapAssignment[*partition.Topic] = partition.Offset
+					//}
+					//
+					//for _, partition := range ass2 {
+					//	if val, ok := mapAssignment[*partition.Topic]; !ok || val != partition.Offset {
+					//		log.Debug("commit successfully, message offset changes for:\n-------->"+
+					//			" consumer%q, topic: %q, from: %q, to: %q", consumers[index], *partition.Topic, val, partition.Offset)
+					//	}
+					//}
 
 					// Check if resync snapshot may have completed.
 					if syncMode != dsync.NoSync && spr.source.Status.Get() == status.ActiveStatus && cat.HoursSinceLastSnapshotRecord() > 3.0 {
@@ -305,7 +305,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 					}
 
 					//todo remove
-					time.Sleep(45 * time.Second)
+					time.Sleep(30 * time.Second)
 				}
 			}()
 
