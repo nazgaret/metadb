@@ -237,13 +237,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 		g.Go(func() error {
 			err := func() error {
 				for {
-
 					cmdgraph := command.NewCommandGraph()
-
-					_, err := countUnreadMessagesNumber(consumers[index])
-					if err != nil {
-						return err
-					}
 
 					// Parse
 					eventReadCount, err := parseChangeEvents(cat, pkerr, consumers[index], cmdgraph, spr.schemaPassFilter,
@@ -271,9 +265,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 					}
 
 					if eventReadCount > 0 && sourceFileScanner == nil && !spr.svr.opt.NoKafkaCommit {
-						log.Debug("Commit message")
-						log.Debug("Num=%d, Consumer:%q", index, consumers[index])
-						offsets, err := consumers[index].Commit()
+						_, err := consumers[index].Commit()
 						if err != nil {
 							e := err.(kafka.Error)
 							if e.IsFatal() {
@@ -289,11 +281,9 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 							}
 						}
 
-						for _, partition := range offsets {
-							log.Debug("Topic=%s, Offset=%q,\n Metadata=%q,\n Consumer:%q", partition.String(), partition.Offset.String(), partition.Metadata, consumers[index])
-						}
 					}
 
+					//TODO remove
 					_, err = countUnreadMessagesNumber(consumers[index])
 					if err != nil {
 						return err
@@ -313,7 +303,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 					}
 
 					//TODO remove
-					time.Sleep(2 * time.Minute)
+					time.Sleep(1 * time.Minute)
 				}
 			}()
 
@@ -325,7 +315,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 	}
 
 	// print the number of the messages still not processed for every topic
-	//countUnreadMessagesNumber(g, consumers) todo uncomment
+	startUnreadMessagesPrinter(g, consumers, time.Minute) //todo make configurable
 
 	// wait till the all groups end work
 	err = g.Wait()
@@ -333,16 +323,36 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 	return err
 }
 
-func startUnreadMessagesPrinter(g *errgroup.Group, consumers []*kafka.Consumer) {
+func startUnreadMessagesPrinter(g *errgroup.Group, consumers []*kafka.Consumer, period time.Duration) {
 	g.Go(func() error {
-		for {
-			time.Sleep(time.Minute)
+		var (
+			startTime = time.Now()
+			endTime   time.Time
+			duration  time.Duration
+		)
 
+		for {
+			time.Sleep(period)
+
+			var sum int64
 			for _, c := range consumers {
-				_, err2 := countUnreadMessagesNumber(c)
+				count, err2 := countUnreadMessagesNumber(c)
 				if err2 != nil {
 					return err2
 				}
+
+				sum = sum + count
+				log.Debug("Consumer: %s,unread messages count:%d  ", c, count)
+			}
+
+			if sum != 0 {
+				log.Debug("Total unread messages:%d", sum)
+				endTime = time.Now().Add(period)
+			} else {
+				if duration == 0 {
+					duration = endTime.Sub(startTime)
+				}
+				log.Warning("All messages was readed in", duration)
 			}
 		}
 	})
@@ -379,7 +389,7 @@ func countUnreadMessagesNumber(c *kafka.Consumer) (int64, error) {
 
 		remaining := high - int64(lastOffset)
 
-		log.Debug("Topic: %s, Partition: %d,\n High: %d, Offset:%d,\n Remaining messages: %d", *topicPartition.Topic, topicPartition.Partition, high, lastOffset, remaining)
+		//log.Debug("Topic: %s, Partition: %d,\n High: %d, Offset:%d,\n Remaining messages: %d", *topicPartition.Topic, topicPartition.Partition, high, lastOffset, remaining)
 
 		result = result + remaining
 	}
