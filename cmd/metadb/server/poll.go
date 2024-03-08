@@ -258,11 +258,6 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 						log.Debug("receiving data from source %q", spr.source.Name)
 					}
 
-					_, err = countUnreadMessagesNumber(consumers[index])
-					if err != nil {
-						return err
-					}
-
 					//// Rewrite
 
 					// TODO UNCOMMENT
@@ -361,17 +356,27 @@ func countUnreadMessagesNumber(c *kafka.Consumer) (int64, error) {
 
 	var result int64
 	for _, topicPartition := range topicPartitions {
-		high, _, err := c.QueryWatermarkOffsets(*topicPartition.Topic, topicPartition.Partition, 5000)
+		_, high, err := c.QueryWatermarkOffsets(*topicPartition.Topic, topicPartition.Partition, 15000)
 		if err != nil {
 			return 0, err
 		}
 
-		committedOffsets, err := c.Committed([]kafka.TopicPartition{{Topic: topicPartition.Topic, Partition: topicPartition.Partition}}, 5000)
+		//we don't need to count empty topics
+		if high == 0 {
+			continue
+		}
+
+		committedOffsets, err := c.Committed([]kafka.TopicPartition{topicPartition}, 5000)
 		if err != nil {
 			return 0, err
 		}
 
 		lastOffset := committedOffsets[0].Offset
+		// if we don't start the reading (special value -1001) we expect reading from start
+		if lastOffset == -1001 {
+			lastOffset = 0
+		}
+
 		remaining := high - int64(lastOffset)
 
 		log.Debug("Topic: %s, Partition: %d,\n High: %d, Offset:%d,\n Remaining messages: %d", *topicPartition.Topic, topicPartition.Partition, high, lastOffset, remaining)
