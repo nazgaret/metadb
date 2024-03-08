@@ -6,6 +6,7 @@ import (
 	"os"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -420,6 +421,19 @@ func getTopicsMatchedTheRegexp(bootstrapServers string, regexPattern string) ([]
 			result = append(result, topic)
 		}
 	}
+
+	//we need to sort them to be sure the result is idempotent
+	slices.SortFunc(result, func(a, b kafka.TopicMetadata) int {
+		if a.Topic < b.Topic {
+			return -1
+		}
+		if a.Topic > b.Topic {
+			return 1
+		}
+
+		return 0
+	})
+
 	return result, nil
 }
 
@@ -439,7 +453,7 @@ func createKafkaConsumers(spr *sproc) ([]*kafka.Consumer, error) {
 	}
 
 	index := 0
-	for _, topic := range topics {
+	for _, topic := range topics { // todo we need to create the way to balance the topics between the consumers and wey to be sure the old consumers not be overridden
 		topicsByConsumer[index] = append(topicsByConsumer[index], topic)
 		index++
 		if index >= consumersNum {
