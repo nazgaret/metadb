@@ -228,10 +228,6 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 	var firstEvent = true
 
 	g, ctx := errgroup.WithContext(ctx)
-
-	//todo remove
-	consumers = consumers[:1]
-
 	for i := range consumers {
 		index := i
 		g.Go(func() error {
@@ -301,9 +297,6 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 							spr.source.Name)
 						cat.ResetLastSnapshotRecord() // Sync timer.
 					}
-
-					//TODO remove
-					time.Sleep(1 * time.Minute)
 				}
 			}()
 
@@ -352,7 +345,8 @@ func startUnreadMessagesPrinter(g *errgroup.Group, consumers []*kafka.Consumer, 
 				if duration == 0 {
 					duration = endTime.Sub(startTime)
 				}
-				log.Warning("All messages was readed in", duration)
+
+				log.Warning("All messages was readed in %q", duration)
 			}
 		}
 	})
