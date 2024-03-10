@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"regexp"
@@ -148,6 +150,10 @@ func mainServer(svr *server, cat *catalog.Catalog) error {
 		process.SetStop()
 	}()
 	// TODO also need to catch signals and call RemovePIDFile
+
+	go func() {
+		log.Debug(fmt.Sprintf("%q", http.ListenAndServe("localhost:6060", nil)))
+	}()
 
 	//svr.dc, err = svr.db.Connect()
 	//if err != nil {
