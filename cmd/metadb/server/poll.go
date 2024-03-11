@@ -225,7 +225,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 	pkerr := make(map[string]struct{}) // "primary key not defined" errors reported
 	var firstEvent = true
 
-	g, ctx := errgroup.WithContext(ctx)
+	g, ctxErrGroup := errgroup.WithContext(ctx)
 
 	//todo remove
 	//consumers = consumers[:4]
@@ -310,8 +310,11 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 			}()
 
 			if err != nil {
-				ctx.Done()
+				log.Warning("ERROR: %q", err)
+				ctxErrGroup.Done()
 			}
+
+			log.Debug("consumer stop consuming: %q", consumers[index])
 			return err
 		})
 	}
