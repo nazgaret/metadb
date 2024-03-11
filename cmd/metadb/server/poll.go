@@ -227,18 +227,12 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 
 	g, ctxErrGroup := errgroup.WithContext(ctx)
 
-	//todo remove
-	//consumers = consumers[:4]
-
 	for i := range consumers {
 		index := i
 		g.Go(func() error {
 			err := func() error {
 				for {
 					cmdgraph := command.NewCommandGraph()
-					//
-					//ass, _ := consumers[index].Assignment()
-					//ass, _ = consumers[index].Committed(ass, 5000)
 
 					// Parse
 					eventReadCount, err := parseChangeEvents(cat, pkerr, consumers[index], cmdgraph, spr.schemaPassFilter,
