@@ -218,7 +218,7 @@ func ReadConfigDatabase(datadir string) (*dbx.DB, error) {
 	}
 	s := cfg.Section("main")
 
-	checkpointSegmentSize := 20000 //todo read from config (check config existence) possible need to change name refer to using
+	checkpointSegmentSize := 5000 //todo read from config (check config existence) possible need to change name refer to using
 	v := s.Key("checkpoint_segment_size").String()
 	if v != "" {
 		checkpointSegmentSize, err = strconv.Atoi(v)
