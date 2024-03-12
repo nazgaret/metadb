@@ -5,13 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"regexp"
 	"runtime/debug"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -29,7 +28,6 @@ import (
 	"github.com/nazgaret/metadb/cmd/metadb/sqlfunc"
 	"github.com/nazgaret/metadb/cmd/metadb/sysdb"
 	"github.com/nazgaret/metadb/cmd/metadb/util"
-	"github.com/sasha-s/go-deadlock"
 )
 
 // The server thread handling needs to be reworked.  It currently runs an HTTP
@@ -46,7 +44,7 @@ type server struct {
 
 // serverstate is shared between goroutines.
 type serverstate struct {
-	mu        deadlock.Mutex
+	mu        sync.Mutex
 	databases []*sysdb.DatabaseConnector
 	sources   []*sysdb.SourceConnector
 }
@@ -150,10 +148,6 @@ func mainServer(svr *server, cat *catalog.Catalog) error {
 		process.SetStop()
 	}()
 	// TODO also need to catch signals and call RemovePIDFile
-
-	go func() {
-		log.Debug(fmt.Sprintf("%q", http.ListenAndServe("localhost:6060", nil)))
-	}()
 
 	//svr.dc, err = svr.db.Connect()
 	//if err != nil {
