@@ -821,6 +821,9 @@ func convertDataType(coltype, semtype string) (DataType, error) {
 			return NumericType, nil
 		}
 		return 0, fmt.Errorf("convert data type: unhandled type: type=%s, semtype=%s", coltype, semtype)
+	case "array": //todo check it for working
+		log.Warning("Unknown COLTYPE:$q, semtype:%q", coltype, semtype)
+		return TextType, nil
 	default:
 		return 0, fmt.Errorf("convert data type: unknown data type: %s", coltype)
 	}
