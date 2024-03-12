@@ -484,7 +484,6 @@ func createKafkaConsumers(spr *sproc) ([]*kafka.Consumer, error) {
 		}
 		var brokers = spr.source.Brokers
 		var group = fmt.Sprintf("%s_topics_part_%d", spr.source.Group, i)
-		log.Debug("connecting to %q, topics %q", brokers, topics)
 		var config = &kafka.ConfigMap{
 			"auto.offset.reset":    "earliest",
 			"bootstrap.servers":    brokers,
