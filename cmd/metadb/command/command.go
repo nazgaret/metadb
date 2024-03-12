@@ -397,7 +397,7 @@ func extractColumns(pkerr map[string]struct{}, ce *change.Event) ([]CommandColum
 		var col CommandColumn
 		col.Name = field
 		if col.DType, err = convertDataType(ftype, semtype); err != nil {
-			return nil, fmt.Errorf("value: $.schema.fields: \"type\": %s", err)
+			return nil, fmt.Errorf("value: $.schema.fields: \"type\": %s, changeEvent:%v", err, ce)
 		}
 		col.Data = fieldData[field]
 		if (col.DType == TextType || col.DType == JSONType) && col.Data != nil {
@@ -694,7 +694,7 @@ func NewCommand(pkerr map[string]struct{}, ce *change.Event, schemaPassFilter, s
 			var dtype DataType
 			dtype, err = convertDataType(dt, semtype)
 			if err != nil {
-				return nil, false, fmt.Errorf("delete: unknown key schema type: %v", m["type"])
+				return nil, false, fmt.Errorf("delete: unknown key schema type: %v, changeEvent:%v", m["type"], ce)
 			}
 			// var scale int32
 			// if dtype == NumericType {

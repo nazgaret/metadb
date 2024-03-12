@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"github.com/metadb-project/metadb/cmd/metadb/log"
 	"github.com/metadb-project/metadb/cmd/metadb/util"
 )
 
@@ -22,7 +21,6 @@ func NewEvent(msg *kafka.Message) (*Event, error) {
 	var ce = new(Event)
 	var err error
 	if msg.Key != nil && len(msg.Key) > 0 {
-		log.Error("KEY WAS : %q", msg.Key) // todo remove
 		if err = json.Unmarshal(msg.Key, &(ce.Key)); err != nil {
 			return nil, fmt.Errorf("change event key: %s\n%s", err, util.KafkaMessageString(msg))
 		}
