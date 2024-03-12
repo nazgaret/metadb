@@ -507,7 +507,6 @@ func createKafkaConsumers(spr *sproc) ([]*kafka.Consumer, error) {
 			return nil, err
 		}
 
-		log.Debug("consumer.SubscribeTopics group:%q, topics:%q", group, topics)
 		consumers = append(consumers, consumer)
 	}
 
