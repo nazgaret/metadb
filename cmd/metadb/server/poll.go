@@ -445,7 +445,7 @@ func createKafkaConsumers(spr *sproc) ([]*kafka.Consumer, error) {
 	var (
 		err              error
 		topics           []string
-		consumersNum     = 20 // todo add to config if needed
+		consumersNum     = 40 // todo add to config if needed
 		consumers        []*kafka.Consumer
 		topicsByConsumer = make([][]string, consumersNum)
 	)
