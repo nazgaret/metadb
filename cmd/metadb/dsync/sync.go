@@ -127,10 +127,12 @@ func Sync(opt *option.Sync) error {
 		synct := catalog.SyncTable(&t)
 		synctsql := synct.SQL()
 		q := "DROP INDEX IF EXISTS \"" + synct.Schema + "\".\"" + synct.Table + "___id_idx\""
+		fmt.Fprintf(os.Stderr, q)
 		if _, err = dp.Exec(context.TODO(), q); err != nil {
 			return err
 		}
 		q = "TRUNCATE " + synctsql
+		fmt.Fprintf(os.Stderr, q)
 		if _, err = dp.Exec(context.TODO(), q); err != nil {
 			return err
 		}
