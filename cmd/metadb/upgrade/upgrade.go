@@ -4,10 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/metadb-project/metadb/cmd/metadb/tools"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/metadb-project/metadb/cmd/metadb/tools"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/metadb-project/metadb/cmd/internal/eout"

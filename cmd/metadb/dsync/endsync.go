@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/metadb-project/metadb/cmd/metadb/tools"
 	"os"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/metadb-project/metadb/cmd/metadb/tools"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/metadb-project/metadb/cmd/internal/eout"

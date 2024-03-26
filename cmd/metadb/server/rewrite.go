@@ -3,6 +3,7 @@ package server
 import (
 	"container/list"
 	"fmt"
+
 	"github.com/metadb-project/metadb/cmd/metadb/command"
 	"github.com/metadb-project/metadb/cmd/metadb/jsonx"
 	"github.com/metadb-project/metadb/cmd/metadb/log"
