@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/nazgaret/metadb/cmd/internal/libmarct"
 	"github.com/nazgaret/metadb/cmd/metadb/catalog"
 	"github.com/nazgaret/metadb/cmd/metadb/dbx"
 	"github.com/nazgaret/metadb/cmd/metadb/log"
