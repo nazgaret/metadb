@@ -4,8 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-
-	"github.com/metadb-project/metadb/cmd/internal/libmarct"
 )
 
 var fullUpdateFlag = flag.Bool("f", false, "Perform full update even if incremental update is available")
