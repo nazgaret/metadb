@@ -118,7 +118,11 @@ func runServer(svr *server, cat *catalog.Catalog) error {
 	if svr.db.DBName != "metadb" && !strings.HasPrefix(svr.db.DBName, "metadb_") {
 		log.Info("database has nonstandard name %q", svr.db.DBName)
 	}
-	setMemoryLimit(svr.opt.MemoryLimit)
+
+	oldMemLimit := setMemoryLimit(svr.opt.MemoryLimit)
+	log.Info("previous memLimit is %v", oldMemLimit)
+	log.Info("new memLimit is %v GB", math.Max(2, svr.opt.MemoryLimit))
+
 	if svr.opt.NoTLS {
 		log.Warning("TLS disabled for all client connections")
 	}
@@ -129,9 +133,9 @@ func runServer(svr *server, cat *catalog.Catalog) error {
 	return nil
 }
 
-func setMemoryLimit(limit float64) {
+func setMemoryLimit(limit float64) int64 {
 	// limit is specified in GiB.
-	debug.SetMemoryLimit(int64(math.Min(math.Max(0.122, limit), 16.0) * 1073741824))
+	return debug.SetMemoryLimit(int64(math.Min(math.Max(0.122, limit), 16.0) * 1073741824))
 }
 
 func launchServer(svr *server, cat *catalog.Catalog) error {
