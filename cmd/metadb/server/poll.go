@@ -296,7 +296,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 	}
 
 	// print the number of the messages still not processed for every topic
-	startUnreadMessagesPrinter(g, consumers, 2*time.Minute) //todo make configurable
+	startUnreadMessagesPrinter(g, consumers, 5*time.Minute) //todo make configurable
 
 	// wait till the all groups end work
 	err = g.Wait()
