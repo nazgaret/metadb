@@ -489,7 +489,7 @@ func traceJaegerFlag(cmd *cobra.Command, jaegerURL *string) string {
 			cmd.Flags().StringVar(jaegerURL, "trace", "", "")
 		}
 		return "" +
-			"      --trace_jaeger                 - Jaeger URL for tracing (OTLP)\n"
+			"      --trace_jaeger                 - Jaeger URL for tracing (OTLP over gRPC)\n"
 	}
 	return ""
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
@@ -17,7 +17,7 @@ func Init(url string) (trace.Tracer, Flush, error) {
 	var tracerProvider trace.TracerProvider
 
 	if len(url) > 0 {
-		exp, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpointURL(url))
+		exp, err := otlptracegrpc.New(ctx, otlptracegrpc.WithEndpointURL(url))
 		if err != nil {
 			return nil, flush(tracerProvider), err
 		}
