@@ -29,6 +29,8 @@ import (
 	"github.com/metadb-project/metadb/cmd/metadb/sqlfunc"
 	"github.com/metadb-project/metadb/cmd/metadb/sysdb"
 	"github.com/metadb-project/metadb/cmd/metadb/util"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"gopkg.in/ini.v1"
 )
 
@@ -41,7 +43,8 @@ type server struct {
 	db    *dbx.DB
 	//dc      *pgx.Conn
 	//dcsuper *pgx.Conn
-	dp *pgxpool.Pool
+	dp     *pgxpool.Pool
+	tracer trace.Tracer
 }
 
 // serverstate is shared between goroutines.
@@ -62,7 +65,8 @@ type sproc struct {
 	svr              *server
 }
 
-func Start(opt *option.Server) error {
+func Start(opt *option.Server, tracer trace.Tracer) error {
+	ctx := context.Background()
 	// Check if server is already running.
 	running, pid, err := process.IsServerRunning(opt.Datadir)
 	if err != nil {
@@ -78,14 +82,22 @@ func Start(opt *option.Server) error {
 	}
 	defer process.RemovePIDFile(opt.Datadir)
 
-	var svr = &server{opt: opt}
-	if err = loggingServer(svr); err != nil {
+	var svr = &server{opt: opt, tracer: tracer}
+
+	ctx, rootSpan := svr.tracer.Start(ctx, "Start")
+	defer rootSpan.End()
+	ctx, span := svr.tracer.Start(ctx, "preparing")
+	defer span.End()
+
+	if err = loggingServer(ctx, svr); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
 	return nil
 }
 
-func loggingServer(svr *server) error {
+func loggingServer(ctx context.Context, svr *server) error {
 
 	// Read checkpoint_segment_size from config
 	cfg, err := ini.Load(util.ConfigFileName(svr.opt.Datadir))
@@ -124,14 +136,15 @@ func loggingServer(svr *server) error {
 	defer log.SetDatabase(nil)
 
 	log.Info("starting Metadb %s", util.MetadbVersion)
-	if err := runServer(svr, cat); err != nil {
+	if err := runServer(ctx, svr, cat); err != nil {
 		log.Fatal("%s", err)
 		return err
 	}
+
 	return nil
 }
 
-func runServer(svr *server, cat *catalog.Catalog) error {
+func runServer(ctx context.Context, svr *server, cat *catalog.Catalog) error {
 	if svr.db.DBName != "metadb" && !strings.HasPrefix(svr.db.DBName, "metadb_") {
 		log.Info("database has nonstandard name %q", svr.db.DBName)
 	}
@@ -140,7 +153,7 @@ func runServer(svr *server, cat *catalog.Catalog) error {
 	if svr.opt.NoTLS {
 		log.Warning("TLS disabled for all client connections")
 	}
-	if err := launchServer(svr, cat); err != nil {
+	if err := launchServer(ctx, svr, cat); err != nil {
 		return err
 	}
 	//log.Info("server is shut down")
@@ -152,11 +165,11 @@ func setMemoryLimit(limit float64) {
 	debug.SetMemoryLimit(int64(math.Min(math.Max(0.122, limit), 16.0) * 1073741824))
 }
 
-func launchServer(svr *server, cat *catalog.Catalog) error {
-	return mainServer(svr, cat)
+func launchServer(ctx context.Context, svr *server, cat *catalog.Catalog) error {
+	return mainServer(ctx, svr, cat)
 }
 
-func mainServer(svr *server, cat *catalog.Catalog) error {
+func mainServer(ctx context.Context, svr *server, cat *catalog.Catalog) error {
 	var sigc = make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGTERM)
 	go func() {
@@ -201,7 +214,7 @@ func mainServer(svr *server, cat *catalog.Catalog) error {
 
 	go libpq.Listen(svr.opt.Listen, svr.opt.Port, svr.db, &svr.state.sources)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go goPollLoop(ctx, cat, svr)
 

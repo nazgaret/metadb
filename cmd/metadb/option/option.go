@@ -33,6 +33,7 @@ type Server struct {
 	NoTLS          bool
 	RewriteJSON    bool
 	MemoryLimit    float64
+	TracingAgentURL string
 	ConsumerNum    int
 	MessageNum     int
 }
