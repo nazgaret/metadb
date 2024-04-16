@@ -288,6 +288,8 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 						spr.schemaStopFilter, spr.tableStopFilter, spr.source.TrimSchemaPrefix,
 						spr.source.AddSchemaPrefix, sourceFileScanner, spr.sourceLog, spr.svr.opt.MessageNum)
 					if err != nil {
+						spanParse.RecordError(err)
+						spanParse.SetStatus(codes.Error, err.Error())
 						return fmt.Errorf("parser: %v", err)
 					}
 					spanParse.AddEvent("eventReadCount", trace.WithAttributes(attribute.Int("count", eventReadCount)))
@@ -300,6 +302,8 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 					//// Rewrite
 					_, spanRewrite := svr.tracer.Start(ctx, "Rewrite")
 					if err = rewriteCommandGraph(cmdgraph, spr.svr.opt.RewriteJSON); err != nil {
+						spanRewrite.RecordError(err)
+						spanRewrite.SetStatus(codes.Error, err.Error())
 						return fmt.Errorf("rewriter: %s", err)
 					}
 					spanRewrite.End()
@@ -307,6 +311,8 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 					// Execute
 					_, spanExecute := svr.tracer.Start(ctx, "Execute")
 					if err = execCommandGraph(ctx, cat, cmdgraph, spr.svr.dp, spr.source.Name, syncMode, dedup); err != nil {
+						spanExecute.RecordError(err)
+						spanExecute.SetStatus(codes.Error, err.Error())
 						return fmt.Errorf("executor: %s", err)
 					}
 					spanExecute.End()
