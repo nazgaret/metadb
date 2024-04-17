@@ -486,10 +486,10 @@ func sourceFileFlag(cmd *cobra.Command, sourcefile *string) string {
 func traceJaegerFlag(cmd *cobra.Command, jaegerURL *string) string {
 	if devMode {
 		if cmd != nil {
-			cmd.Flags().StringVar(jaegerURL, "trace", "", "")
+			cmd.Flags().StringVar(jaegerURL, "jaegertrace", "", "")
 		}
 		return "" +
-			"      --trace_jaeger                 - Jaeger URL for tracing (OTLP over gRPC)\n"
+			"      --jaegertrace                 - Jaeger URL for tracing (OTLP over gRPC)\n"
 	}
 	return ""
 }
