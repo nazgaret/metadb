@@ -17,7 +17,7 @@ func Init(url string) (trace.Tracer, Flush, error) {
 	var tracerProvider trace.TracerProvider
 
 	if len(url) > 0 {
-		exp, err := otlptracegrpc.New(ctx, otlptracegrpc.WithEndpointURL(url))
+		exp, err := otlptracegrpc.New(ctx, otlptracegrpc.WithEndpoint(url))
 		if err != nil {
 			return nil, flush(tracerProvider), err
 		}
