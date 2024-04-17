@@ -495,7 +495,7 @@ func createKafkaConsumers(ctx context.Context, svr *server, spr *sproc) ([]*kafk
 	var (
 		err              error
 		topics           []string
-		consumersNum     = 40
+		consumersNum     = 20
 		consumers        []*kafka.Consumer
 		topicsByConsumer = make([][]string, consumersNum)
 	)
