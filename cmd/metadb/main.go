@@ -484,14 +484,11 @@ func sourceFileFlag(cmd *cobra.Command, sourcefile *string) string {
 }
 
 func traceJaegerFlag(cmd *cobra.Command, jaegerURL *string) string {
-	if devMode {
-		if cmd != nil {
-			cmd.Flags().StringVar(jaegerURL, "jaegertrace", "", "")
-		}
-		return "" +
-			"      --jaegertrace                 - Jaeger URL for tracing (OTLP over gRPC)\n"
+	if cmd != nil {
+		cmd.Flags().StringVar(jaegerURL, "jaegertrace", "", "")
 	}
-	return ""
+	return "" +
+		"      --jaegertrace                 - Jaeger URL for tracing (OTLP over gRPC)\n"
 }
 
 //func listenFlag(cmd *cobra.Command, listen *string) string {
