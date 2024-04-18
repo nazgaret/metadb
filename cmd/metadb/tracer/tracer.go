@@ -21,7 +21,7 @@ func Init(otlpEndpoint string) (trace.Tracer, Flush, error) {
 	var err error
 
 	if len(otlpEndpoint) > 0 {
-		conn, err = grpc.NewClient(otlpEndpoint,
+		conn, err = grpc.Dial(otlpEndpoint,
 			// Note the use of insecure transport here. TLS is recommended in production.
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithBlock(),
