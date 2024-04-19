@@ -29,7 +29,6 @@ import (
 	"github.com/metadb-project/metadb/cmd/metadb/sqlfunc"
 	"github.com/metadb-project/metadb/cmd/metadb/sysdb"
 	"github.com/metadb-project/metadb/cmd/metadb/util"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"gopkg.in/ini.v1"
 )
@@ -84,11 +83,7 @@ func Start(opt *option.Server, tracer trace.Tracer) error {
 
 	var svr = &server{opt: opt, tracer: tracer}
 
-	ctx, span := svr.tracer.Start(ctx, "server.go: preparing")
-
 	if err = loggingServer(ctx, svr); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
 	return nil
@@ -210,9 +205,6 @@ func mainServer(ctx context.Context, svr *server, cat *catalog.Catalog) error {
 	go goCreateFunctions(*(svr.db))
 
 	go libpq.Listen(svr.opt.Listen, svr.opt.Port, svr.db, &svr.state.sources)
-
-	prepSpan := trace.SpanFromContext(ctx)
-	prepSpan.End()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
