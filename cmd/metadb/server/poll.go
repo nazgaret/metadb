@@ -31,7 +31,7 @@ import (
 )
 
 func goPollLoop(ctx context.Context, cat *catalog.Catalog, svr *server) {
-	ctx, span := svr.tracer.Start(ctx, "poll.go: preparing")
+	ctx, span := svr.tracer.Start(ctx, "poll.go: preparing", trace.WithNewRoot())
 
 	if svr.opt.NoKafkaCommit {
 		log.Info("Kafka commits disabled")
@@ -274,7 +274,9 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 					consCtx, spanConsume := svr.tracer.Start(ctx, fmt.Sprintf("consumer[%v] consuming", index),
 						trace.WithAttributes(
 							attribute.StringSlice("topics", topics),
-						))
+						),
+						trace.WithNewRoot(),
+					)
 					cmdgraph := command.NewCommandGraph()
 
 					// Parse

@@ -53,7 +53,7 @@ func Init(otlpEndpoint string) (trace.Tracer, Flush, error) {
 			sdktrace.WithBatcher(exp),
 			sdktrace.WithResource(r),
 			sdktrace.WithSampler(
-				sdktrace.TraceIDRatioBased(0.1),
+				sdktrace.TraceIDRatioBased(1),
 			),
 		)
 	} else {
