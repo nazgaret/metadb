@@ -84,10 +84,7 @@ func Start(opt *option.Server, tracer trace.Tracer) error {
 
 	var svr = &server{opt: opt, tracer: tracer}
 
-	ctx, rootSpan := svr.tracer.Start(ctx, "Start")
-	defer rootSpan.End()
-	ctx, span := svr.tracer.Start(ctx, "preparing")
-	defer span.End()
+	ctx, span := svr.tracer.Start(ctx, "server.go: preparing")
 
 	if err = loggingServer(ctx, svr); err != nil {
 		span.RecordError(err)
@@ -213,6 +210,9 @@ func mainServer(ctx context.Context, svr *server, cat *catalog.Catalog) error {
 	go goCreateFunctions(*(svr.db))
 
 	go libpq.Listen(svr.opt.Listen, svr.opt.Port, svr.db, &svr.state.sources)
+
+	prepSpan := trace.SpanFromContext(ctx)
+	prepSpan.End()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

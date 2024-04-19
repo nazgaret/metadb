@@ -5,12 +5,16 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+const serviceName = "metadb"
 
 type Flush func() error
 
@@ -34,8 +38,23 @@ func Init(otlpEndpoint string) (trace.Tracer, Flush, error) {
 			return nil, flush(tracerProvider, conn), err
 		}
 
+		r, err := resource.Merge(
+			resource.Default(),
+			resource.NewWithAttributes(
+				semconv.SchemaURL,
+				semconv.ServiceNameKey.String(serviceName),
+			),
+		)
+		if err != nil {
+			return nil, flush(tracerProvider, conn), err
+		}
+
 		tracerProvider = sdktrace.NewTracerProvider(
 			sdktrace.WithBatcher(exp),
+			sdktrace.WithResource(r),
+			sdktrace.WithSampler(
+				sdktrace.TraceIDRatioBased(0.1),
+			),
 		)
 	} else {
 		tracerProvider = noop.NewTracerProvider()
