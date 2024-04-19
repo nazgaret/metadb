@@ -31,28 +31,22 @@ import (
 )
 
 func goPollLoop(ctx context.Context, cat *catalog.Catalog, svr *server) {
-	ctx, span := svr.tracer.Start(ctx, "poll.go: preparing", trace.WithNewRoot())
-
 	if svr.opt.NoKafkaCommit {
 		log.Info("Kafka commits disabled")
 	}
 	// For now, we support only one source
 	spr, err := waitForConfig(svr)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
 		log.Fatal("%s", err)
 		os.Exit(1)
 	}
 
 	folio, err := isFolioModulePresent(svr.db)
 	if err != nil {
-		span.RecordError(err)
 		log.Error("checking for folio module: %v", err)
 	}
 	reshare, err := isReshareModulePresent(svr.db)
 	if err != nil {
-		span.RecordError(err)
 		log.Error("checking for reshare module: %v", err)
 	}
 	go goMaintenance(svr.opt.Datadir, *(svr.db), svr.dp, cat, spr.source.Name, folio, reshare)
@@ -63,7 +57,6 @@ func goPollLoop(ctx context.Context, cat *catalog.Catalog, svr *server) {
 			break
 		}
 
-		span.RecordError(err)
 		spr.source.Status.Error()
 		spr.databases[0].Status.Error()
 		time.Sleep(24 * time.Hour)
@@ -236,13 +229,13 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 	dedup := log.NewMessageSet()
 	var firstEvent = true
 
-	prepSpan := trace.SpanFromContext(ctx)
-	prepSpan.End()
+	// prepSpan := trace.SpanFromContext(ctx)
+	// prepSpan.End()
 
-	newCtx, span := svr.tracer.Start(ctx, "consuming",
-		trace.WithNewRoot(),
-	)
-	defer span.End()
+	// newCtx, span := svr.tracer.Start(ctx, "consuming",
+	// 	trace.WithNewRoot(),
+	// )
+	// defer span.End()
 
 	g, ctxErrGroup := errgroup.WithContext(ctx)
 	for i := range consumers {
@@ -252,11 +245,10 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 
 			err := func() error {
 				for {
-					consCtx, spanConsume := svr.tracer.Start(newCtx, fmt.Sprintf("consumer[%v]", index),
+					consCtx, spanConsume := svr.tracer.Start(ctx, fmt.Sprintf("consumer[%v]", index),
 						trace.WithAttributes(
 							attribute.StringSlice("topics", topics),
 						),
-						//trace.WithNewRoot(),
 					)
 					cmdgraph := command.NewCommandGraph()
 
@@ -350,10 +342,10 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 	// wait till the all groups end work
 	err = g.Wait()
 
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-	}
+	// if err != nil {
+	// 	span.RecordError(err)
+	// 	span.SetStatus(codes.Error, err.Error())
+	// }
 
 	return err
 }
