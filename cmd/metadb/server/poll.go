@@ -239,6 +239,11 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 	prepSpan := trace.SpanFromContext(ctx)
 	prepSpan.End()
 
+	newCtx, span := svr.tracer.Start(ctx, "consuming",
+		trace.WithNewRoot(),
+	)
+	defer span.End()
+
 	g, ctxErrGroup := errgroup.WithContext(ctx)
 	for i := range consumers {
 		index := i
@@ -247,11 +252,11 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 
 			err := func() error {
 				for {
-					consCtx, spanConsume := svr.tracer.Start(ctx, fmt.Sprintf("consumer[%v] consuming", index),
+					consCtx, spanConsume := svr.tracer.Start(newCtx, fmt.Sprintf("consumer[%v]", index),
 						trace.WithAttributes(
 							attribute.StringSlice("topics", topics),
 						),
-						trace.WithNewRoot(),
+						//trace.WithNewRoot(),
 					)
 					cmdgraph := command.NewCommandGraph()
 
@@ -315,7 +320,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 					//}
 
 					// Check if resync snapshot may have completed.
-					_, spanSnapshot := svr.tracer.Start(ctx, "check snapshot")
+					_, spanSnapshot := svr.tracer.Start(consCtx, "check snapshot")
 					if syncMode != dsync.NoSync && spr.source.Status.Get() == status.ActiveStatus && cat.HoursSinceLastSnapshotRecord() > 3.0 {
 						msg := fmt.Sprintf("source %q snapshot complete (deadline exceeded); consider running \"metadb endsync\"",
 							spr.source.Name)
@@ -344,6 +349,11 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 
 	// wait till the all groups end work
 	err = g.Wait()
+
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
 
 	return err
 }
