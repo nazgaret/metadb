@@ -293,43 +293,46 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 					}
 					spanParse.End()
 
-					//// Rewrite
-					_, spanRewrite := svr.tracer.Start(consCtx, "rewrite command graph")
-					if err = rewriteCommandGraph(cmdgraph, spr.svr.opt.RewriteJSON); err != nil {
-						spanRewrite.RecordError(err)
-						spanRewrite.SetStatus(codes.Error, err.Error())
-						return fmt.Errorf("rewriter: %s", err)
-					}
-					spanRewrite.End()
+					if eventReadCount > 0 {
+						//// Rewrite
+						_, spanRewrite := svr.tracer.Start(consCtx, "rewrite command graph")
+						if err = rewriteCommandGraph(cmdgraph, spr.svr.opt.RewriteJSON); err != nil {
+							spanRewrite.RecordError(err)
+							spanRewrite.SetStatus(codes.Error, err.Error())
+							return fmt.Errorf("rewriter: %s", err)
+						}
+						spanRewrite.End()
 
-					// Execute
-					_, spanExecute := svr.tracer.Start(consCtx, "execute command graph")
-					if err = execCommandGraph(ctx, cat, cmdgraph, spr.svr.dp, spr.source.Name, syncMode, dedup); err != nil {
-						spanExecute.RecordError(err)
-						spanExecute.SetStatus(codes.Error, err.Error())
-						return fmt.Errorf("executor: %s", err)
-					}
-					spanExecute.End()
+						// Execute
+						_, spanExecute := svr.tracer.Start(consCtx, "execute command graph")
+						if err = execCommandGraph(ctx, cat, cmdgraph, spr.svr.dp, spr.source.Name, syncMode, dedup); err != nil {
+							spanExecute.RecordError(err)
+							spanExecute.SetStatus(codes.Error, err.Error())
+							return fmt.Errorf("executor: %s", err)
+						}
+						spanExecute.End()
 
-					_, spanCommit := svr.tracer.Start(consCtx, "kafka commit")
-					if eventReadCount > 0 && sourceFileScanner == nil && !spr.svr.opt.NoKafkaCommit {
-						_, err = consumers[index].Commit()
-						if err != nil {
-							e := err.(kafka.Error)
-							if e.IsFatal() {
-								//return fmt.Errorf("Kafka commit: %v", e)
-								log.Warning("Kafka commit: %v", e)
-							} else {
-								switch e.Code() {
-								case kafka.ErrNoOffset:
-									log.Debug("Kafka commit: %v", e)
-								default:
-									log.Info("Kafka commit: %v", e)
+						if sourceFileScanner == nil && !spr.svr.opt.NoKafkaCommit {
+							_, spanCommit := svr.tracer.Start(consCtx, "kafka commit")
+							_, err = consumers[index].Commit()
+							if err != nil {
+								e := err.(kafka.Error)
+								if e.IsFatal() {
+									//return fmt.Errorf("Kafka commit: %v", e)
+									log.Warning("Kafka commit: %v", e)
+								} else {
+									switch e.Code() {
+									case kafka.ErrNoOffset:
+										log.Debug("Kafka commit: %v", e)
+									default:
+										log.Info("Kafka commit: %v", e)
+									}
 								}
 							}
+							spanCommit.End()
 						}
+
 					}
-					spanCommit.End()
 
 					//if eventReadCount > 0 {
 					//	log.Debug("checkpoint: events=%d, commands=%d, consumer=%d", eventReadCount, cmdgraph.Commands.Len(), index)
