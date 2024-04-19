@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 
 	"github.com/nazgaret/metadb/cmd/internal/color"
@@ -128,6 +130,12 @@ func run() error {
 			//if serverOpt.Port == "" {
 			//        serverOpt.Port = metadbAdminPort
 			//}
+
+			//add pprof
+			go func() {
+				http.ListenAndServe("localhost:8080", nil)
+			}()
+
 			serverOpt.RewriteJSON = rewriteJSON == "1"
 			serverOpt.Listen = "127.0.0.1"
 			if err = server.Start(&serverOpt); err != nil {
