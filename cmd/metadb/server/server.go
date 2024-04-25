@@ -65,7 +65,6 @@ type sproc struct {
 }
 
 func Start(opt *option.Server, tracer trace.Tracer) error {
-	ctx := context.Background()
 	// Check if server is already running.
 	running, pid, err := process.IsServerRunning(opt.Datadir)
 	if err != nil {
@@ -83,7 +82,7 @@ func Start(opt *option.Server, tracer trace.Tracer) error {
 
 	var svr = &server{opt: opt, tracer: tracer}
 
-	if err = loggingServer(ctx, svr); err != nil {
+	if err = loggingServer(svr); err != nil {
 		return err
 	}
 	return nil
@@ -128,7 +127,7 @@ func loggingServer(ctx context.Context, svr *server) error {
 	defer log.SetDatabase(nil)
 
 	log.Info("starting Metadb %s", util.MetadbVersion)
-	if err := runServer(ctx, svr, cat); err != nil {
+	if err := runServer(svr, cat); err != nil {
 		log.Fatal("%s", err)
 		return err
 	}
@@ -136,7 +135,7 @@ func loggingServer(ctx context.Context, svr *server) error {
 	return nil
 }
 
-func runServer(ctx context.Context, svr *server, cat *catalog.Catalog) error {
+func runServer(svr *server, cat *catalog.Catalog) error {
 	if svr.db.DBName != "metadb" && !strings.HasPrefix(svr.db.DBName, "metadb_") {
 		log.Info("database has nonstandard name %q", svr.db.DBName)
 	}
@@ -145,7 +144,7 @@ func runServer(ctx context.Context, svr *server, cat *catalog.Catalog) error {
 	if svr.opt.NoTLS {
 		log.Warning("TLS disabled for all client connections")
 	}
-	if err := launchServer(ctx, svr, cat); err != nil {
+	if err := launchServer(svr, cat); err != nil {
 		return err
 	}
 	//log.Info("server is shut down")
@@ -157,11 +156,11 @@ func setMemoryLimit(limit float64) {
 	debug.SetMemoryLimit(int64(math.Min(math.Max(0.122, limit), 16.0) * 1073741824))
 }
 
-func launchServer(ctx context.Context, svr *server, cat *catalog.Catalog) error {
-	return mainServer(ctx, svr, cat)
+func launchServer(svr *server, cat *catalog.Catalog) error {
+	return mainServer(svr, cat)
 }
 
-func mainServer(ctx context.Context, svr *server, cat *catalog.Catalog) error {
+func mainServer(svr *server, cat *catalog.Catalog) error {
 	var sigc = make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGTERM)
 	go func() {
@@ -206,7 +205,7 @@ func mainServer(ctx context.Context, svr *server, cat *catalog.Catalog) error {
 
 	go libpq.Listen(svr.opt.Listen, svr.opt.Port, svr.db, &svr.state.sources)
 
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go goPollLoop(ctx, cat, svr)
 
