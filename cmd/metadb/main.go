@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/metadb-project/metadb/cmd/internal/color"
@@ -17,6 +18,8 @@ import (
 	"github.com/metadb-project/metadb/cmd/metadb/upgrade"
 	"github.com/metadb-project/metadb/cmd/metadb/util"
 	"github.com/spf13/cobra"
+
+	_ "net/http/pprof"
 )
 
 var program = "metadb"
@@ -135,6 +138,11 @@ func run() error {
 				return err
 			}
 			defer flush()
+
+			// add pprof
+			go func() {
+				log.Error("%s", http.ListenAndServe(":1777", nil))
+			}()
 
 			serverOpt.RewriteJSON = rewriteJSON == "1"
 			serverOpt.Listen = "127.0.0.1"
