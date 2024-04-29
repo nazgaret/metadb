@@ -369,11 +369,6 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 	// wait till the all groups end work
 	err = g.Wait()
 
-	// if err != nil {
-	// 	span.RecordError(err)
-	// 	span.SetStatus(codes.Error, err.Error())
-	// }
-
 	return err
 }
 
