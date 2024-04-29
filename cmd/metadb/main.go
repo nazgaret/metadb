@@ -15,6 +15,8 @@ import (
 	"github.com/metadb-project/metadb/cmd/metadb/stop"
 	"github.com/metadb-project/metadb/cmd/metadb/upgrade"
 	"github.com/metadb-project/metadb/cmd/metadb/util"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/spf13/cobra"
 )
 
@@ -128,6 +130,10 @@ func run() error {
 			//if serverOpt.Port == "" {
 			//        serverOpt.Port = metadbAdminPort
 			//}
+			serverOpt.ConsumerNum, serverOpt.MessageNum, err = setupBrokerDefaultValues()
+			if err != nil {
+				return err
+			}
 			serverOpt.RewriteJSON = rewriteJSON == "1"
 			serverOpt.Listen = "127.0.0.1"
 			if err = server.Start(&serverOpt); err != nil {
@@ -659,4 +665,32 @@ func initColor() error {
 	}
 	colorInitialized = true
 	return nil
+}
+
+func setupBrokerDefaultValues() (consumers, messages int, err error) {
+	consumers = 20
+	messages = 5000
+	m, err := mem.VirtualMemory()
+	if err != nil {
+		return
+	}
+	c, err := cpu.Counts(true)
+	if err != nil {
+		return
+	}
+	gbMem := m.Total/1000000000 + 1
+	if c == 1 {
+		consumers = 20
+		messages = 5000
+		return
+	} else if c == 2 && gbMem >= 8 {
+		consumers = 40
+		messages = 10000
+		return
+	} else if c >= 4 && gbMem >= 16 {
+		consumers = 60
+		messages = 10000
+		return
+	}
+	return
 }
