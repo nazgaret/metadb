@@ -54,7 +54,7 @@ func Sync(opt *option.Sync) error {
 	if err != nil {
 		return err
 	}
-	dp, err := dbx.NewPool(context.TODO(), db.ConnString(db.User, db.Password))
+	dp, err := dbx.NewPool(context.TODO(), db.ConnString(db.User, db.Password), 20)
 	if err != nil {
 		return fmt.Errorf("creating database connection pool: %v", err)
 	}
