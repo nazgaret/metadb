@@ -69,16 +69,15 @@ func (c Column) ColumnSQL() string {
 }
 
 type DB struct {
-	Host                  string
-	Port                  string
-	User                  string
-	Password              string
-	SuperUser             string
-	SuperPassword         string
-	DBName                string
-	SSLMode               string
-	CheckpointSegmentSize int
-	MaxPollInterval       int
+	Host            string
+	Port            string
+	User            string
+	Password        string
+	SuperUser       string
+	SuperPassword   string
+	DBName          string
+	SSLMode         string
+	MaxPollInterval int
 }
 
 //func NewDB(databaseURI string) (*DB, error) {

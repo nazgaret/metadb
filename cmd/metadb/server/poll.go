@@ -260,7 +260,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 					// Parse
 					eventReadCount, err := parseChangeEvents(cat, dedup, consumers[index], cmdgraph, spr.schemaPassFilter,
 						spr.schemaStopFilter, spr.tableStopFilter, spr.source.TrimSchemaPrefix,
-						spr.source.AddSchemaPrefix, sourceFileScanner, spr.sourceLog, spr.svr.db.CheckpointSegmentSize)
+						spr.source.AddSchemaPrefix, sourceFileScanner, spr.sourceLog, spr.svr.opt.MessageNum)
 					if err != nil {
 						return fmt.Errorf("parser: %v", err)
 					}
@@ -433,7 +433,7 @@ func getTopicsMatchedTheRegexp(bootstrapServers string, regexPattern string, mes
 	defer adminClient.Close()
 
 	// Fetch the list of topics
-	metadata, err := adminClient.GetMetadata(nil, true, messageNum)
+	metadata, err := adminClient.GetMetadata(nil, true, 5000)
 	if err != nil {
 		return nil, fmt.Errorf("Error fetching metadata: %v\n", err)
 	}
