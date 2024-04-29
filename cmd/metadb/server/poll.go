@@ -224,7 +224,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 	// Kafka source
 	var consumers []*kafka.Consumer
 	if sourceFileScanner == nil {
-		consumers, err = createKafkaConsumers(ctx, svr, spr)
+		consumers, err = createKafkaConsumers(spr)
 		if err != nil {
 			return err
 		}
@@ -512,10 +512,7 @@ func getTopicsMatchedTheRegexp(bootstrapServers string, regexPattern string) ([]
 	return result, nil
 }
 
-func createKafkaConsumers(ctx context.Context, svr *server, spr *sproc) ([]*kafka.Consumer, error) {
-	_, span := svr.tracer.Start(ctx, "createKafkaConsumers")
-	defer span.End()
-
+func createKafkaConsumers(spr *sproc) ([]*kafka.Consumer, error) {
 	var (
 		err              error
 		topics           []string
