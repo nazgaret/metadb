@@ -23,6 +23,9 @@ import (
 	"github.com/metadb-project/metadb/cmd/metadb/process"
 	"github.com/metadb-project/metadb/cmd/metadb/sysdb"
 	"github.com/metadb-project/metadb/cmd/metadb/util"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 )
@@ -53,6 +56,7 @@ func goPollLoop(ctx context.Context, cat *catalog.Catalog, svr *server) {
 		if err == nil {
 			break
 		}
+
 		spr.source.Status.Error()
 		spr.databases[0].Status.Error()
 		time.Sleep(24 * time.Hour)
@@ -102,14 +106,14 @@ func outerPollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *
 	////
 
 	log.Debug("starting stream processor")
-	if err = pollLoop(ctx, cat, spr); err != nil {
+	if err = pollLoop(ctx, cat, svr, spr); err != nil {
 		//log.Error("%s", err)
 		return err
 	}
 	return nil
 }
 
-func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
+func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc) error {
 	// var database0 *sysdb.DatabaseConnector = spr.databases[0]
 	//if database0.Type == "postgresql" && database0.DBPort == "" {
 	//	database0.DBPort = "5432"
@@ -225,52 +229,85 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 	dedup := log.NewMessageSet()
 	var firstEvent = true
 
+	// prepSpan := trace.SpanFromContext(ctx)
+	// prepSpan.End()
+
+	// newCtx, span := svr.tracer.Start(ctx, "consuming",
+	// 	trace.WithNewRoot(),
+	// )
+	// defer span.End()
+
 	g, ctxErrGroup := errgroup.WithContext(ctx)
 	for i := range consumers {
 		index := i
 		g.Go(func() error {
+			topics, _ := consumers[index].Subscription()
+
 			err := func() error {
 				for {
+					consCtx, spanConsume := svr.tracer.Start(ctx, fmt.Sprintf("consumer[%v]", index),
+						trace.WithAttributes(
+							attribute.StringSlice("topics", topics),
+						),
+					)
 					cmdgraph := command.NewCommandGraph()
 
 					// Parse
+					_, spanParse := svr.tracer.Start(consCtx, "parse events")
 					eventReadCount, err := parseChangeEvents(cat, dedup, consumers[index], cmdgraph, spr.schemaPassFilter,
 						spr.schemaStopFilter, spr.tableStopFilter, spr.source.TrimSchemaPrefix,
 						spr.source.AddSchemaPrefix, sourceFileScanner, spr.sourceLog, spr.svr.db.CheckpointSegmentSize)
 					if err != nil {
+						spanParse.RecordError(err)
+						spanParse.SetStatus(codes.Error, err.Error())
 						return fmt.Errorf("parser: %v", err)
 					}
+					spanParse.AddEvent("eventReadCount", trace.WithAttributes(attribute.Int("count", eventReadCount)))
 					if firstEvent {
 						firstEvent = false
 						log.Debug("receiving data from source %q", spr.source.Name)
 					}
+					spanParse.End()
 
-					//// Rewrite
-					if err = rewriteCommandGraph(cmdgraph, spr.svr.opt.RewriteJSON); err != nil {
-						return fmt.Errorf("rewriter: %s", err)
-					}
+					if eventReadCount > 0 {
+						//// Rewrite
+						_, spanRewrite := svr.tracer.Start(consCtx, "rewrite command graph")
+						if err = rewriteCommandGraph(cmdgraph, spr.svr.opt.RewriteJSON); err != nil {
+							spanRewrite.RecordError(err)
+							spanRewrite.SetStatus(codes.Error, err.Error())
+							return fmt.Errorf("rewriter: %s", err)
+						}
+						spanRewrite.End()
 
-					// Execute
-					if err = execCommandGraph(ctx, cat, cmdgraph, spr.svr.dp, spr.source.Name, syncMode, dedup); err != nil {
-						return fmt.Errorf("executor: %s", err)
-					}
+						// Execute
+						_, spanExecute := svr.tracer.Start(consCtx, "execute command graph")
+						if err = execCommandGraph(ctx, cat, cmdgraph, spr.svr.dp, spr.source.Name, syncMode, dedup); err != nil {
+							spanExecute.RecordError(err)
+							spanExecute.SetStatus(codes.Error, err.Error())
+							return fmt.Errorf("executor: %s", err)
+						}
+						spanExecute.End()
 
-					if eventReadCount > 0 && sourceFileScanner == nil && !spr.svr.opt.NoKafkaCommit {
-						_, err = consumers[index].Commit()
-						if err != nil {
-							e := err.(kafka.Error)
-							if e.IsFatal() {
-								//return fmt.Errorf("Kafka commit: %v", e)
-								log.Warning("Kafka commit: %v", e)
-							} else {
-								switch e.Code() {
-								case kafka.ErrNoOffset:
-									log.Debug("Kafka commit: %v", e)
-								default:
-									log.Info("Kafka commit: %v", e)
+						if sourceFileScanner == nil && !spr.svr.opt.NoKafkaCommit {
+							_, spanCommit := svr.tracer.Start(consCtx, "kafka commit")
+							_, err = consumers[index].Commit()
+							if err != nil {
+								e := err.(kafka.Error)
+								if e.IsFatal() {
+									//return fmt.Errorf("Kafka commit: %v", e)
+									log.Warning("Kafka commit: %v", e)
+								} else {
+									switch e.Code() {
+									case kafka.ErrNoOffset:
+										log.Debug("Kafka commit: %v", e)
+									default:
+										log.Info("Kafka commit: %v", e)
+									}
 								}
 							}
+							spanCommit.End()
 						}
+
 					}
 
 					//if eventReadCount > 0 {
@@ -278,6 +315,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 					//}
 
 					// Check if resync snapshot may have completed.
+					_, spanSnapshot := svr.tracer.Start(consCtx, "check snapshot")
 					if syncMode != dsync.NoSync && spr.source.Status.Get() == status.ActiveStatus && cat.HoursSinceLastSnapshotRecord() > 3.0 {
 						msg := fmt.Sprintf("source %q snapshot complete (deadline exceeded); consider running \"metadb endsync\"",
 							spr.source.Name)
@@ -286,6 +324,8 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 						}
 						cat.ResetLastSnapshotRecord() // Sync timer.
 					}
+					spanSnapshot.End()
+					spanConsume.End()
 				}
 			}()
 
@@ -447,7 +487,7 @@ func createKafkaConsumers(spr *sproc) ([]*kafka.Consumer, error) {
 	var (
 		err              error
 		topics           []string
-		consumersNum     = 40
+		consumersNum     = 20
 		consumers        []*kafka.Consumer
 		topicsByConsumer = make([][]string, consumersNum)
 	)
