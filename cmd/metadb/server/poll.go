@@ -381,8 +381,8 @@ func countUnreadMessagesNumber(c *kafka.Consumer) (int64, error) {
 }
 
 // getTopicsNamesMatchedTheRegexp get all topics names matched provided regexPattern and bootstrap servers
-func getTopicsNamesMatchedTheRegexp(bootstrapServers, regexPattern string, messageNum int) ([]string, error) {
-	topicsMetadata, err := getTopicsMatchedTheRegexp(bootstrapServers, regexPattern, messageNum)
+func getTopicsNamesMatchedTheRegexp(bootstrapServers, regexPattern string) ([]string, error) {
+	topicsMetadata, err := getTopicsMatchedTheRegexp(bootstrapServers, regexPattern)
 	if err != nil {
 		return nil, err
 	}
@@ -396,7 +396,7 @@ func getTopicsNamesMatchedTheRegexp(bootstrapServers, regexPattern string, messa
 }
 
 // getTopicsMatchedTheRegexp get all topics metadata matched provided regexPattern and bootstrap servers
-func getTopicsMatchedTheRegexp(bootstrapServers string, regexPattern string, messageNum int) ([]kafka.TopicMetadata, error) {
+func getTopicsMatchedTheRegexp(bootstrapServers string, regexPattern string) ([]kafka.TopicMetadata, error) {
 	config := &kafka.ConfigMap{
 		"bootstrap.servers": bootstrapServers,
 		"client.id":         "kafka-topic-lister",
@@ -452,7 +452,7 @@ func createKafkaConsumers(spr *sproc) ([]*kafka.Consumer, error) {
 		topicsByConsumer = make([][]string, consumersNum)
 	)
 
-	topics, err = getTopicsNamesMatchedTheRegexp(spr.source.Brokers, spr.source.Topics[0], spr.svr.opt.MessageNum)
+	topics, err = getTopicsNamesMatchedTheRegexp(spr.source.Brokers, spr.source.Topics[0])
 	if err != nil {
 		spr.source.Status.Error()
 		return nil, err
