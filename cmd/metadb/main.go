@@ -17,8 +17,6 @@ import (
 	"github.com/metadb-project/metadb/cmd/metadb/upgrade"
 	"github.com/metadb-project/metadb/cmd/metadb/util"
 	"github.com/spf13/cobra"
-
-	_ "net/http/pprof"
 )
 
 var program = "metadb"
