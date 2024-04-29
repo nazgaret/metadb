@@ -29,6 +29,7 @@ import (
 	"github.com/metadb-project/metadb/cmd/metadb/sqlfunc"
 	"github.com/metadb-project/metadb/cmd/metadb/sysdb"
 	"github.com/metadb-project/metadb/cmd/metadb/util"
+	"go.opentelemetry.io/otel/trace"
 	"gopkg.in/ini.v1"
 )
 
@@ -41,7 +42,8 @@ type server struct {
 	db    *dbx.DB
 	//dc      *pgx.Conn
 	//dcsuper *pgx.Conn
-	dp *pgxpool.Pool
+	dp     *pgxpool.Pool
+	tracer trace.Tracer
 }
 
 // serverstate is shared between goroutines.
@@ -62,7 +64,7 @@ type sproc struct {
 	svr              *server
 }
 
-func Start(opt *option.Server) error {
+func Start(opt *option.Server, tracer trace.Tracer) error {
 	// Check if server is already running.
 	running, pid, err := process.IsServerRunning(opt.Datadir)
 	if err != nil {
@@ -78,7 +80,8 @@ func Start(opt *option.Server) error {
 	}
 	defer process.RemovePIDFile(opt.Datadir)
 
-	var svr = &server{opt: opt}
+	var svr = &server{opt: opt, tracer: tracer}
+
 	if err = loggingServer(svr); err != nil {
 		return err
 	}
@@ -128,6 +131,7 @@ func loggingServer(svr *server) error {
 		log.Fatal("%s", err)
 		return err
 	}
+
 	return nil
 }
 
