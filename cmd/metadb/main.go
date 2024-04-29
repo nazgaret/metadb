@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 
 	"github.com/metadb-project/metadb/cmd/internal/color"
@@ -20,8 +19,6 @@ import (
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/spf13/cobra"
-
-	_ "net/http/pprof"
 )
 
 var program = "metadb"
