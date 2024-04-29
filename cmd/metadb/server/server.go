@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"regexp"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -29,6 +30,7 @@ import (
 	"github.com/metadb-project/metadb/cmd/metadb/sysdb"
 	"github.com/metadb-project/metadb/cmd/metadb/util"
 	"go.opentelemetry.io/otel/trace"
+	"gopkg.in/ini.v1"
 )
 
 // The server thread handling needs to be reworked.  It currently runs an HTTP
@@ -87,14 +89,29 @@ func Start(opt *option.Server, tracer trace.Tracer) error {
 }
 
 func loggingServer(svr *server) error {
+
+	// Read checkpoint_segment_size from config
+	cfg, err := ini.Load(util.ConfigFileName(svr.opt.Datadir))
+	if err != nil {
+		return err
+	}
+	s := cfg.Section("main")
+	v := s.Key("checkpoint_segment_size").String()
+	if v != "" {
+		checkpointSegmentSize, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("reading checkpoint_segment_size: parsing %q: invalid syntax", v)
+		}
+		svr.opt.MessageNum = checkpointSegmentSize
+	}
+
 	// Read database URL from config file.
-	var err error
 	svr.db, err = util.ReadConfigDatabase(svr.opt.Datadir)
 	if err != nil {
 		return fmt.Errorf("reading configuration file: %v", err)
 	}
 
-	svr.dp, err = dbx.NewPool(context.TODO(), svr.db.ConnString(svr.db.User, svr.db.Password))
+	svr.dp, err = dbx.NewPool(context.TODO(), svr.db.ConnString(svr.db.User, svr.db.Password), int32(svr.opt.ConsumerNum))
 	if err != nil {
 		return fmt.Errorf("creating database connection pool: %v", err)
 	}
@@ -122,6 +139,7 @@ func runServer(svr *server, cat *catalog.Catalog) error {
 	if svr.db.DBName != "metadb" && !strings.HasPrefix(svr.db.DBName, "metadb_") {
 		log.Info("database has nonstandard name %q", svr.db.DBName)
 	}
+	log.Debug("Memory Limit: %v; Consumers: %v; Messages: %v;", svr.opt.MemoryLimit, svr.opt.ConsumerNum, svr.opt.MessageNum)
 	setMemoryLimit(svr.opt.MemoryLimit)
 	if svr.opt.NoTLS {
 		log.Warning("TLS disabled for all client connections")

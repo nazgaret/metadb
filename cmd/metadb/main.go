@@ -16,6 +16,8 @@ import (
 	"github.com/metadb-project/metadb/cmd/metadb/tracer"
 	"github.com/metadb-project/metadb/cmd/metadb/upgrade"
 	"github.com/metadb-project/metadb/cmd/metadb/util"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/spf13/cobra"
 )
 
@@ -129,6 +131,10 @@ func run() error {
 			//if serverOpt.Port == "" {
 			//        serverOpt.Port = metadbAdminPort
 			//}
+			serverOpt.ConsumerNum, serverOpt.MessageNum, err = setupBrokerDefaultValues()
+			if err != nil {
+				return err
+			}
 
 			t, flush, err := tracer.Init(serverOpt.TracingAgentURL)
 			if err != nil {
@@ -568,11 +574,18 @@ func dirFlag(cmd *cobra.Command, datadir *string) string {
 
 func memoryLimitFlag(cmd *cobra.Command, memoryLimit *float64) string {
 	if cmd != nil {
-		cmd.Flags().Float64Var(memoryLimit, "memlimit", 1.0, "")
+		cmd.Flags().Float64Var(memoryLimit, "memlimit", 0, "")
+		if *memoryLimit == 0 {
+			m, err := mem.VirtualMemory()
+			if err == nil {
+				gbMem := float64(m.Total) / 1000000000
+				*memoryLimit = gbMem * 0.75
+			}
+		}
 	}
 	return "" +
 		"      --memlimit <m>          - Approximate limit on memory usage in GiB\n" +
-		"                                (default: 1.0)\n"
+		"                                (default: 75% of RAM)\n"
 }
 
 func setupLog(logfile, csvlogfile string, debug bool, trace bool) (*os.File, *os.File, error) {
@@ -667,4 +680,23 @@ func initColor() error {
 	}
 	colorInitialized = true
 	return nil
+}
+
+func setupBrokerDefaultValues() (consumers, messages int, err error) {
+	consumers = 20
+	messages = 5000
+	m, err := mem.VirtualMemory()
+	if err != nil {
+		return
+	}
+	c, err := cpu.Counts(false)
+	if err != nil {
+		return
+	}
+	gbMem := m.Total/1000000000 + 1 // plus 1 for rounding
+	if c > 2 && gbMem >= 8 {
+		consumers = 40
+		messages = 10000
+	}
+	return
 }

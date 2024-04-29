@@ -69,16 +69,15 @@ func (c Column) ColumnSQL() string {
 }
 
 type DB struct {
-	Host                  string
-	Port                  string
-	User                  string
-	Password              string
-	SuperUser             string
-	SuperPassword         string
-	DBName                string
-	SSLMode               string
-	CheckpointSegmentSize int
-	MaxPollInterval       int
+	Host            string
+	Port            string
+	User            string
+	Password        string
+	SuperUser       string
+	SuperPassword   string
+	DBName          string
+	SSLMode         string
+	MaxPollInterval int
 }
 
 //func NewDB(databaseURI string) (*DB, error) {
@@ -158,13 +157,13 @@ func Rollback(tx pgx.Tx) {
 	_ = tx.Rollback(context.TODO())
 }
 
-func NewPool(ctx context.Context, connString string) (*pgxpool.Pool, error) {
+func NewPool(ctx context.Context, connString string, maxConns int32) (*pgxpool.Pool, error) {
 	config, err := pgxpool.ParseConfig(connString)
 	if err != nil {
 		return nil, err
 	}
 	config.AfterConnect = setDatabaseParameters
-	config.MaxConns = 20 //todo configure numbers (we crash instance if put 400 here!!!)
+	config.MaxConns = maxConns
 	dp, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		return nil, err

@@ -256,7 +256,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 					_, spanParse := svr.tracer.Start(consCtx, "parse events")
 					eventReadCount, err := parseChangeEvents(cat, dedup, consumers[index], cmdgraph, spr.schemaPassFilter,
 						spr.schemaStopFilter, spr.tableStopFilter, spr.source.TrimSchemaPrefix,
-						spr.source.AddSchemaPrefix, sourceFileScanner, spr.sourceLog, spr.svr.db.CheckpointSegmentSize)
+						spr.source.AddSchemaPrefix, sourceFileScanner, spr.sourceLog, spr.svr.opt.MessageNum)
 					if err != nil {
 						spanParse.RecordError(err)
 						spanParse.SetStatus(codes.Error, err.Error())
@@ -487,7 +487,7 @@ func createKafkaConsumers(spr *sproc) ([]*kafka.Consumer, error) {
 	var (
 		err              error
 		topics           []string
-		consumersNum     = 20
+		consumersNum     = spr.svr.opt.ConsumerNum
 		consumers        []*kafka.Consumer
 		topicsByConsumer = make([][]string, consumersNum)
 	)

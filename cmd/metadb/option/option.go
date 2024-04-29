@@ -34,6 +34,8 @@ type Server struct {
 	RewriteJSON     bool
 	MemoryLimit     float64
 	TracingAgentURL string
+	ConsumerNum     int
+	MessageNum      int
 }
 
 type Stop struct {

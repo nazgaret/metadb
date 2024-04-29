@@ -218,17 +218,8 @@ func ReadConfigDatabase(datadir string) (*dbx.DB, error) {
 	}
 	s := cfg.Section("main")
 
-	checkpointSegmentSize := 5000 //todo read from config (check config existence) possible need to change name refer to using
-	v := s.Key("checkpoint_segment_size").String()
-	if v != "" {
-		checkpointSegmentSize, err = strconv.Atoi(v)
-		if err != nil {
-			return nil, fmt.Errorf("reading checkpoint_segment_size: parsing %q: invalid syntax", v)
-		}
-	}
-
 	maxPollInterval := 1800000
-	v = s.Key("max_poll_interval").String()
+	v := s.Key("max_poll_interval").String()
 	if v != "" {
 		maxPollInterval, err = strconv.Atoi(v)
 		if err != nil {
@@ -237,16 +228,15 @@ func ReadConfigDatabase(datadir string) (*dbx.DB, error) {
 	}
 
 	return &dbx.DB{
-		Host:                  s.Key("host").String(),
-		Port:                  s.Key("port").String(),
-		User:                  s.Key("systemuser").String(),
-		Password:              s.Key("systemuser_password").String(),
-		SuperUser:             s.Key("superuser").String(),
-		SuperPassword:         s.Key("superuser_password").String(),
-		DBName:                s.Key("database").String(),
-		SSLMode:               s.Key("sslmode").String(),
-		CheckpointSegmentSize: checkpointSegmentSize,
-		MaxPollInterval:       maxPollInterval,
+		Host:            s.Key("host").String(),
+		Port:            s.Key("port").String(),
+		User:            s.Key("systemuser").String(),
+		Password:        s.Key("systemuser_password").String(),
+		SuperUser:       s.Key("superuser").String(),
+		SuperPassword:   s.Key("superuser_password").String(),
+		DBName:          s.Key("database").String(),
+		SSLMode:         s.Key("sslmode").String(),
+		MaxPollInterval: maxPollInterval,
 	}, nil
 }
 
