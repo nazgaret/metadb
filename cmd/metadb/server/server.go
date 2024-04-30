@@ -131,7 +131,11 @@ func runServer(svr *server, cat *catalog.Catalog) error {
 
 func setMemoryLimit(limit float64) {
 	// limit is specified in GiB.
-	debug.SetMemoryLimit(int64(math.Min(math.Max(0.122, limit), 16.0) * 1073741824))
+	calculatedMemoryLimit := int64(math.Min(math.Max(0.122, limit), 16.0) * 1073741824)
+	log.Debug("_________________________")
+	log.Debug("MemoryLimit %v", calculatedMemoryLimit)
+	log.Debug("_________________________")
+	debug.SetMemoryLimit(calculatedMemoryLimit)
 }
 
 func launchServer(svr *server, cat *catalog.Catalog) error {
