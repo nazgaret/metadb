@@ -19,6 +19,9 @@ import (
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/spf13/cobra"
+
+	"net/http"
+	_ "net/http/pprof"
 )
 
 var program = "metadb"
@@ -137,6 +140,11 @@ func run() error {
 				return err
 			}
 			defer flush()
+
+			//add pprof
+			go func() {
+				http.ListenAndServe("localhost:8080", nil)
+			}()
 
 			serverOpt.ConsumerNum, serverOpt.MessageNum, err = setupBrokerDefaultValues()
 			if err != nil {
