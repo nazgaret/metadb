@@ -19,6 +19,9 @@ import (
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/spf13/cobra"
+
+	"net/http"
+	_ "net/http/pprof"
 )
 
 var program = "metadb"
@@ -141,6 +144,11 @@ func run() error {
 				return err
 			}
 			defer flush()
+
+			//add pprof
+			go func() {
+				http.ListenAndServe("localhost:8080", nil)
+			}()
 
 			serverOpt.RewriteJSON = rewriteJSON == "1"
 			serverOpt.Listen = "127.0.0.1"
