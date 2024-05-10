@@ -534,4 +534,4 @@ SELECT * FROM ps();
 Metadb creates pre-calculated number of consumers and DB connections for 
 parallel processing messages. By default it has 20 consumers and db-connections 
 and process 5000 messages per iteration. If instance has > 2 CPU cores and
- >= 8 RAM, Metadb creates 40 consumers/connections and process 10000 messages.
+ >= 8 RAM, Metadb creates 40 consumers and connections and processes 10000 messages.
