@@ -695,7 +695,7 @@ func setupBrokerDefaultValues() (consumers, messages int, err error) {
 	}
 	gbMem := m.Total/1000000000 + 1 // plus 1 for rounding
 	if c > 2 && gbMem >= 8 {
-		consumers = 40
+		consumers = 41
 		messages = 10000
 	}
 	return
