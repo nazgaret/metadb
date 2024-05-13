@@ -699,7 +699,7 @@ func setupBrokerDefaultValues() (consumers, messages int, err error) {
 	if err != nil {
 		return
 	}
-	c, err := cpu.Counts(false)
+	c, err := cpu.Counts(true)
 	if err != nil {
 		return
 	}
