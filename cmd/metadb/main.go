@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/metadb-project/metadb/cmd/internal/color"
 	"github.com/metadb-project/metadb/cmd/internal/common"
@@ -146,6 +147,7 @@ func run() error {
 			defer flush()
 
 			//add pprof
+			runtime.SetBlockProfileRate(1)
 			go func() {
 				http.ListenAndServe("localhost:8080", nil)
 			}()
