@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/metadb-project/metadb/cmd/internal/color"
 	"github.com/metadb-project/metadb/cmd/internal/common"
@@ -19,6 +20,9 @@ import (
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/spf13/cobra"
+
+	"net/http"
+	_ "net/http/pprof"
 )
 
 var program = "metadb"
@@ -141,6 +145,12 @@ func run() error {
 				return err
 			}
 			defer flush()
+
+			//add pprof TODO: REMOVE IN PROD
+			runtime.SetBlockProfileRate(1)
+			go func() {
+				http.ListenAndServe("localhost:8080", nil)
+			}()
 
 			serverOpt.RewriteJSON = rewriteJSON == "1"
 			serverOpt.Listen = "127.0.0.1"
