@@ -146,7 +146,7 @@ func run() error {
 			}
 			defer flush()
 
-			//add pprof
+			//add pprof TODO: REMOVE IN PROD
 			runtime.SetBlockProfileRate(1)
 			go func() {
 				http.ListenAndServe("localhost:8080", nil)
