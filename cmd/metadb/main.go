@@ -699,7 +699,7 @@ func setupBrokerDefaultValues() (consumers, messages int, err error) {
 	if err != nil {
 		return
 	}
-	c, err := cpu.Counts(false)
+	c, err := cpu.Counts(true)
 	if err != nil {
 		return
 	}
@@ -708,5 +708,6 @@ func setupBrokerDefaultValues() (consumers, messages int, err error) {
 		consumers = 41
 		messages = 10000
 	}
+	log.Debug("CPUs count: %v; RAM: %v Gb (%v bytes);", c, gbMem, m.Total)
 	return
 }
