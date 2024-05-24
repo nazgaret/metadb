@@ -13,8 +13,11 @@ import (
 	"github.com/metadb-project/metadb/cmd/metadb/option"
 	"github.com/metadb-project/metadb/cmd/metadb/server"
 	"github.com/metadb-project/metadb/cmd/metadb/stop"
+	"github.com/metadb-project/metadb/cmd/metadb/tracer"
 	"github.com/metadb-project/metadb/cmd/metadb/upgrade"
 	"github.com/metadb-project/metadb/cmd/metadb/util"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/spf13/cobra"
 )
 
@@ -128,11 +131,23 @@ func run() error {
 			//if serverOpt.Port == "" {
 			//        serverOpt.Port = metadbAdminPort
 			//}
+			serverOpt.ConsumerNum, serverOpt.MessageNum, err = setupBrokerDefaultValues()
+			if err != nil {
+				return err
+			}
+
+			t, flush, err := tracer.Init(serverOpt.TracingAgentURL)
+			if err != nil {
+				return err
+			}
+			defer flush()
+
 			serverOpt.RewriteJSON = rewriteJSON == "1"
 			serverOpt.Listen = "127.0.0.1"
-			if err = server.Start(&serverOpt); err != nil {
+			if err = server.Start(&serverOpt, t); err != nil {
 				return fatal(err, logf, csvlogf)
 			}
+
 			return nil
 		},
 	}
@@ -145,12 +160,13 @@ func run() error {
 	//_ = certFlag(cmdStart, &serverOpt.TLSCert)
 	//_ = keyFlag(cmdStart, &serverOpt.TLSKey)
 	_ = debugFlag(cmdStart, &serverOpt.Debug)
-	_ = traceLogFlag(cmdStart, &serverOpt.Trace)
+	_ = traceFlag(cmdStart, &serverOpt.Trace)
 	_ = noKafkaCommitFlag(cmdStart, &serverOpt.NoKafkaCommit)
 	_ = sourceFileFlag(cmdStart, &serverOpt.SourceFilename)
 	_ = logSourceFlag(cmdStart, &serverOpt.LogSource)
 	//_ = noTLSFlag(cmdStart, &serverOpt.NoTLS)
 	_ = memoryLimitFlag(cmdStart, &serverOpt.MemoryLimit)
+	_ = traceJaegerFlag(cmdStart, &serverOpt.TracingAgentURL)
 
 	var cmdStop = &cobra.Command{
 		Use: "stop",
@@ -316,11 +332,12 @@ func help(cmd *cobra.Command, commandLine []string) {
 			//keyFlag(nil, nil) +
 			debugFlag(nil, nil) +
 			//noTLSFlag(nil, nil) +
-			traceLogFlag(nil, nil) +
+			traceFlag(nil, nil) +
 			noKafkaCommitFlag(nil, nil) +
 			sourceFileFlag(nil, nil) +
 			logSourceFlag(nil, nil) +
 			memoryLimitFlag(nil, nil) +
+			traceJaegerFlag(nil, nil) +
 			"")
 	case "stop":
 		fmt.Printf("" +
@@ -472,15 +489,12 @@ func sourceFileFlag(cmd *cobra.Command, sourcefile *string) string {
 	return ""
 }
 
-func traceLogFlag(cmd *cobra.Command, trace *bool) string {
-	if devMode {
-		if cmd != nil {
-			cmd.Flags().BoolVar(trace, "trace", false, "")
-		}
-		return "" +
-			"      --trace                 - Enable extremely detailed logging\n"
+func traceJaegerFlag(cmd *cobra.Command, jaegerURL *string) string {
+	if cmd != nil {
+		cmd.Flags().StringVar(jaegerURL, "jaegertrace", "", "")
 	}
-	return ""
+	return "" +
+		"      --jaegertrace                 - Jaeger URL for tracing (OTLP over gRPC)\n"
 }
 
 //func listenFlag(cmd *cobra.Command, listen *string) string {
@@ -560,11 +574,18 @@ func dirFlag(cmd *cobra.Command, datadir *string) string {
 
 func memoryLimitFlag(cmd *cobra.Command, memoryLimit *float64) string {
 	if cmd != nil {
-		cmd.Flags().Float64Var(memoryLimit, "memlimit", 1.0, "")
+		cmd.Flags().Float64Var(memoryLimit, "memlimit", 0, "")
+		if *memoryLimit == 0 {
+			m, err := mem.VirtualMemory()
+			if err == nil {
+				gbMem := float64(m.Total) / 1000000000
+				*memoryLimit = gbMem * 0.75
+			}
+		}
 	}
 	return "" +
 		"      --memlimit <m>          - Approximate limit on memory usage in GiB\n" +
-		"                                (default: 1.0)\n"
+		"                                (default: 75% of RAM)\n"
 }
 
 func setupLog(logfile, csvlogfile string, debug bool, trace bool) (*os.File, *os.File, error) {
@@ -659,4 +680,24 @@ func initColor() error {
 	}
 	colorInitialized = true
 	return nil
+}
+
+func setupBrokerDefaultValues() (consumers, messages int, err error) {
+	consumers = 20
+	messages = 5000
+	m, err := mem.VirtualMemory()
+	if err != nil {
+		return
+	}
+	c, err := cpu.Counts(true)
+	if err != nil {
+		return
+	}
+	gbMem := m.Total/1000000000 + 1 // plus 1 for rounding
+	if c > 2 && gbMem >= 8 {
+		consumers = 41
+		messages = 10000
+	}
+	log.Debug("CPUs count: %v; RAM: %v Gb (%v bytes);", c, gbMem, m.Total)
+	return
 }

@@ -20,19 +20,22 @@ type Upgrade struct {
 
 type Server struct {
 	Global
-	Debug          bool
-	Trace          bool
-	Datadir        string
-	NoKafkaCommit  bool
-	SourceFilename string
-	LogSource      string
-	Listen         string
-	Port           string
-	TLSCert        string
-	TLSKey         string
-	NoTLS          bool
-	RewriteJSON    bool
-	MemoryLimit    float64
+	Debug           bool
+	Trace           bool
+	Datadir         string
+	NoKafkaCommit   bool
+	SourceFilename  string
+	LogSource       string
+	Listen          string
+	Port            string
+	TLSCert         string
+	TLSKey          string
+	NoTLS           bool
+	RewriteJSON     bool
+	MemoryLimit     float64
+	TracingAgentURL string
+	ConsumerNum     int
+	MessageNum      int
 }
 
 type Stop struct {
