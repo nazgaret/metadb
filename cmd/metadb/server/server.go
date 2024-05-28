@@ -232,7 +232,7 @@ func mainServer(svr *server, cat *catalog.Catalog) error {
 	for {
 		if process.Stop() {
 			cancel()
-			<-svr.finished
+			<-svr.finished // waiting until all consuming processes ends
 			break
 		}
 		time.Sleep(5 * time.Second)

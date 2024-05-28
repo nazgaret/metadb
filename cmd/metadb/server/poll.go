@@ -31,6 +31,7 @@ import (
 )
 
 func goPollLoop(ctx context.Context, cat *catalog.Catalog, svr *server) {
+	// runs when all consumers finished their work after stop signal
 	defer func() {
 		svr.finished <- struct{}{}
 	}()
@@ -233,6 +234,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 	dedup := log.NewMessageSet()
 	var firstEvent = true
 
+	ctx, cancel := context.WithCancel(ctx)
 	g, ctxErrGroup := errgroup.WithContext(ctx)
 	for i := range consumers {
 		index := i
@@ -241,6 +243,12 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 
 			err := func() error {
 				for {
+					select {
+					case <-ctxErrGroup.Done():
+						return nil
+					default:
+					}
+
 					consCtx, spanConsume := svr.tracer.Start(ctx, fmt.Sprintf("consumer[%v]", index),
 						trace.WithAttributes(
 							attribute.StringSlice("topics", topics),
@@ -322,17 +330,12 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 					}
 					spanSnapshot.End()
 					spanConsume.End()
-
-					select {
-					case <-ctxErrGroup.Done():
-						return nil
-					default:
-					}
 				}
 			}()
 
 			if err != nil {
 				log.Warning("ERROR: %q", err)
+				cancel()
 			}
 
 			log.Debug("consumer stop consuming: %q", consumers[index])
