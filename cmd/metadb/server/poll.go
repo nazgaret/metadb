@@ -2,6 +2,7 @@ package server
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -288,6 +289,9 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 						if err = execCommandGraph(ctx, cat, cmdgraph, spr.svr.dp, spr.source.Name, syncMode, dedup); err != nil {
 							spanExecute.RecordError(err)
 							spanExecute.SetStatus(codes.Error, err.Error())
+							if errors.Is(err, context.Canceled) {
+								return nil
+							}
 							return fmt.Errorf("executor: %s", err)
 						}
 						spanExecute.End()
