@@ -31,6 +31,10 @@ import (
 )
 
 func goPollLoop(ctx context.Context, cat *catalog.Catalog, svr *server) {
+	defer func() {
+		svr.finished <- struct{}{}
+	}()
+
 	if svr.opt.NoKafkaCommit {
 		log.Info("Kafka commits disabled")
 	}
@@ -229,14 +233,6 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 	dedup := log.NewMessageSet()
 	var firstEvent = true
 
-	// prepSpan := trace.SpanFromContext(ctx)
-	// prepSpan.End()
-
-	// newCtx, span := svr.tracer.Start(ctx, "consuming",
-	// 	trace.WithNewRoot(),
-	// )
-	// defer span.End()
-
 	g, ctxErrGroup := errgroup.WithContext(ctx)
 	for i := range consumers {
 		index := i
@@ -326,12 +322,17 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 					}
 					spanSnapshot.End()
 					spanConsume.End()
+
+					select {
+					case <-ctxErrGroup.Done():
+						return nil
+					default:
+					}
 				}
 			}()
 
 			if err != nil {
 				log.Warning("ERROR: %q", err)
-				ctxErrGroup.Done()
 			}
 
 			log.Debug("consumer stop consuming: %q", consumers[index])
@@ -534,7 +535,6 @@ func createKafkaConsumers(spr *sproc) ([]*kafka.Consumer, error) {
 			"max.poll.interval.ms": spr.svr.db.MaxPollInterval,
 			"security.protocol":    spr.source.Security,
 		}
-
 		var consumer *kafka.Consumer
 		consumer, err = kafka.NewConsumer(config)
 		if err != nil {
