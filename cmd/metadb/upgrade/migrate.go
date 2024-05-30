@@ -7,6 +7,14 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/metadb-project/metadb/cmd/internal/eout"
@@ -18,13 +26,6 @@ import (
 	"github.com/metadb-project/metadb/cmd/metadb/process"
 	"github.com/metadb-project/metadb/cmd/metadb/util"
 	"github.com/spf13/viper"
-	"io"
-	"os"
-	"path/filepath"
-	"slices"
-	"strconv"
-	"strings"
-	"time"
 )
 
 func Migrate(opt *option.Migrate) error {
@@ -55,7 +56,7 @@ func Migrate(opt *option.Migrate) error {
 	if err != nil {
 		return err
 	}
-	dp, err := dbx.NewPool(context.TODO(), db.ConnString(db.User, db.Password))
+	dp, err := dbx.NewPool(context.TODO(), db.ConnString(db.User, db.Password), 20)
 	if err != nil {
 		return fmt.Errorf("creating Metadb database connection pool: %v", err)
 	}
@@ -76,7 +77,7 @@ func Migrate(opt *option.Migrate) error {
 	if err != nil {
 		return err
 	}
-	dpLDP, err := dbx.NewPool(context.TODO(), dbLDP.ConnString(dbLDP.User, dbLDP.Password))
+	dpLDP, err := dbx.NewPool(context.TODO(), dbLDP.ConnString(dbLDP.User, dbLDP.Password), 20)
 	if err != nil {
 		return fmt.Errorf("creating LDP database connection pool: %v", err)
 	}

@@ -528,3 +528,10 @@ on the status of the query process from another session:
 ----
 SELECT * FROM ps();
 ----
+
+==== Message consuming and DB connections
+
+Metadb creates pre-calculated number of consumers and DB connections for 
+parallel processing messages. By default it has 20 consumers and db-connections 
+and process 5000 messages per iteration. If instance has > 2 CPU cores and
+ >= 8 RAM, Metadb creates 40 consumers and connections and processes 10000 messages.

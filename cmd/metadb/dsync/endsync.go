@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/metadb-project/metadb/cmd/metadb/tools"
 	"os"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/metadb-project/metadb/cmd/metadb/tools"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/metadb-project/metadb/cmd/internal/eout"
@@ -29,7 +30,7 @@ func EndSync(opt *option.EndSync) error {
 		return err
 	}
 	var dp *pgxpool.Pool
-	dp, err = dbx.NewPool(context.TODO(), db.ConnString(db.User, db.Password))
+	dp, err = dbx.NewPool(context.TODO(), db.ConnString(db.User, db.Password), 20)
 	if err != nil {
 		return fmt.Errorf("creating database connection pool: %v", err)
 	}
