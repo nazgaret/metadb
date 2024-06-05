@@ -157,13 +157,18 @@ func Rollback(tx pgx.Tx) {
 	_ = tx.Rollback(context.TODO())
 }
 
-func NewPool(ctx context.Context, connString string, maxConns int32) (*pgxpool.Pool, error) {
+func NewPool(ctx context.Context, connString string, maxConns ...int32) (*pgxpool.Pool, error) {
+
 	config, err := pgxpool.ParseConfig(connString)
 	if err != nil {
 		return nil, err
 	}
 	config.AfterConnect = setDatabaseParameters
-	config.MaxConns = maxConns
+
+	if maxConns != nil {
+		config.MaxConns = maxConns[0]
+	}
+
 	dp, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		return nil, err

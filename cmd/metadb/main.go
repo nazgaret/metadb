@@ -135,6 +135,11 @@ func run() error {
 			//if serverOpt.Port == "" {
 			//        serverOpt.Port = metadbAdminPort
 			//}
+			serverOpt.ConsumerNum, serverOpt.MessageNum, err = setupBrokerDefaultValues()
+			if err != nil {
+				return err
+			}
+
 
 			t, flush, err := tracer.Init(serverOpt.TracingAgentURL)
 			if err != nil {
@@ -142,16 +147,6 @@ func run() error {
 			}
 			defer flush()
 
-			//add pprof TODO: REMOVE IN PROD
-			runtime.SetBlockProfileRate(1)
-			go func() {
-				http.ListenAndServe("localhost:8080", nil)
-			}()
-
-			serverOpt.ConsumerNum, serverOpt.MessageNum, err = setupBrokerDefaultValues()
-			if err != nil {
-				return err
-			}
 			serverOpt.RewriteJSON = rewriteJSON == "1"
 			serverOpt.Listen = "127.0.0.1"
 			if err = server.Start(&serverOpt, t); err != nil {

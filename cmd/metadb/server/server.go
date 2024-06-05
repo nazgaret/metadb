@@ -88,7 +88,7 @@ func Start(opt *option.Server, tracer trace.Tracer) error {
 	return nil
 }
 
-func loggingServer(ctx context.Context, svr *server) error {
+func loggingServer(svr *server) error {
 
 	// Read checkpoint_segment_size from config
 	cfg, err := ini.Load(util.ConfigFileName(svr.opt.Datadir))
