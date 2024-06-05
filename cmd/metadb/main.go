@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/metadb-project/metadb/cmd/internal/color"
 	"github.com/metadb-project/metadb/cmd/internal/common"
@@ -19,6 +20,9 @@ import (
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/spf13/cobra"
+
+	"net/http"
+	_ "net/http/pprof"
 )
 
 var program = "metadb"
@@ -135,6 +139,7 @@ func run() error {
 			if err != nil {
 				return err
 			}
+
 
 			t, flush, err := tracer.Init(serverOpt.TracingAgentURL)
 			if err != nil {

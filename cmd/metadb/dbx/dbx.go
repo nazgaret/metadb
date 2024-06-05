@@ -158,6 +158,7 @@ func Rollback(tx pgx.Tx) {
 }
 
 func NewPool(ctx context.Context, connString string, maxConns ...int32) (*pgxpool.Pool, error) {
+
 	config, err := pgxpool.ParseConfig(connString)
 	if err != nil {
 		return nil, err
@@ -167,6 +168,7 @@ func NewPool(ctx context.Context, connString string, maxConns ...int32) (*pgxpoo
 	if maxConns != nil {
 		config.MaxConns = maxConns[0]
 	}
+
 	dp, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		return nil, err
