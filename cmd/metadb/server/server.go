@@ -42,8 +42,9 @@ type server struct {
 	db    *dbx.DB
 	//dc      *pgx.Conn
 	//dcsuper *pgx.Conn
-	dp     *pgxpool.Pool
-	tracer trace.Tracer
+	dp       *pgxpool.Pool
+	tracer   trace.Tracer
+	finished chan struct{}
 }
 
 // serverstate is shared between goroutines.
@@ -80,7 +81,11 @@ func Start(opt *option.Server, tracer trace.Tracer) error {
 	}
 	defer process.RemovePIDFile(opt.Datadir)
 
-	var svr = &server{opt: opt, tracer: tracer}
+	var svr = &server{
+		opt:      opt,
+		tracer:   tracer,
+		finished: make(chan struct{}),
+	}
 
 	if err = loggingServer(svr); err != nil {
 		return err
@@ -206,7 +211,7 @@ func mainServer(svr *server, cat *catalog.Catalog) error {
 	go libpq.Listen(svr.opt.Listen, svr.opt.Port, svr.db, &svr.state.sources)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+
 	go goPollLoop(ctx, cat, svr)
 
 	/*	folio, err := isFolioModulePresent(svr.db)
@@ -226,6 +231,8 @@ func mainServer(svr *server, cat *catalog.Catalog) error {
 
 	for {
 		if process.Stop() {
+			cancel()
+			<-svr.finished // waiting until all consuming processes ends
 			break
 		}
 		time.Sleep(5 * time.Second)
