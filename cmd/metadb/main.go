@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"runtime"
 
 	"github.com/metadb-project/metadb/cmd/internal/color"
 	"github.com/metadb-project/metadb/cmd/internal/common"
@@ -21,7 +20,6 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/spf13/cobra"
 
-	"net/http"
 	_ "net/http/pprof"
 )
 
@@ -140,7 +138,6 @@ func run() error {
 				return err
 			}
 
-
 			t, flush, err := tracer.Init(serverOpt.TracingAgentURL)
 			if err != nil {
 				return err
@@ -172,6 +169,7 @@ func run() error {
 	//_ = noTLSFlag(cmdStart, &serverOpt.NoTLS)
 	_ = memoryLimitFlag(cmdStart, &serverOpt.MemoryLimit)
 	_ = traceJaegerFlag(cmdStart, &serverOpt.TracingAgentURL)
+	_ = snsTopicFlag(cmdStart, &serverOpt.SNSTopic)
 
 	var cmdStop = &cobra.Command{
 		Use: "stop",
@@ -343,6 +341,7 @@ func help(cmd *cobra.Command, commandLine []string) {
 			logSourceFlag(nil, nil) +
 			memoryLimitFlag(nil, nil) +
 			traceJaegerFlag(nil, nil) +
+			snsTopicFlag(nil, nil) +
 			"")
 	case "stop":
 		fmt.Printf("" +
@@ -591,6 +590,14 @@ func memoryLimitFlag(cmd *cobra.Command, memoryLimit *float64) string {
 	return "" +
 		"      --memlimit <m>          - Approximate limit on memory usage in GiB\n" +
 		"                                (default: 75% of RAM)\n"
+}
+
+func snsTopicFlag(cmd *cobra.Command, snsTopic *string) string {
+	if cmd != nil {
+		cmd.Flags().StringVar(snsTopic, "snstopic", "", "")
+	}
+	return "" +
+		"      --snstopic              - SNS topic for notifications for running the endsync process\n"
 }
 
 func setupLog(logfile, csvlogfile string, debug bool, trace bool) (*os.File, *os.File, error) {

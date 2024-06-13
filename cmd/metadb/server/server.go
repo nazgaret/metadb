@@ -23,6 +23,7 @@ import (
 	"github.com/metadb-project/metadb/cmd/metadb/libpq"
 	"github.com/metadb-project/metadb/cmd/metadb/log"
 	"github.com/metadb-project/metadb/cmd/metadb/marctab"
+	"github.com/metadb-project/metadb/cmd/metadb/notifier"
 	"github.com/metadb-project/metadb/cmd/metadb/option"
 	"github.com/metadb-project/metadb/cmd/metadb/process"
 	"github.com/metadb-project/metadb/cmd/metadb/runsql"
@@ -45,6 +46,7 @@ type server struct {
 	dp       *pgxpool.Pool
 	tracer   trace.Tracer
 	finished chan struct{}
+	notifier *notifier.Notifier
 }
 
 // serverstate is shared between goroutines.
@@ -81,10 +83,16 @@ func Start(opt *option.Server, tracer trace.Tracer) error {
 	}
 	defer process.RemovePIDFile(opt.Datadir)
 
+	ntf, err := notifier.Init(opt.SNSTopic)
+	if err != nil {
+		return err
+	}
+
 	var svr = &server{
 		opt:      opt,
 		tracer:   tracer,
 		finished: make(chan struct{}),
+		notifier: ntf,
 	}
 
 	if err = loggingServer(svr); err != nil {
