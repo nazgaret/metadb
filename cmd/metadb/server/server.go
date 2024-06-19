@@ -214,15 +214,6 @@ func mainServer(svr *server, cat *catalog.Catalog) error {
 
 	//go listenAndServe(svr)
 
-	// TO DO: remove
-	go func() {
-		time.Sleep(2 * time.Minute)
-		msg := "source \"folio\" snapshot complete (deadline exceeded); consider running \"metadb endsync\""
-		if err := svr.notifier.Send(context.Background(), msg); err != nil {
-			log.Warning("failed to send notification: %w", err)
-		}
-	}()
-
 	go goCreateFunctions(*(svr.db))
 
 	go libpq.Listen(svr.opt.Listen, svr.opt.Port, svr.db, &svr.state.sources)
