@@ -24,12 +24,14 @@ func Init(topic string) (*Notifier, error) {
 		return nil, nil
 	}
 
+	// Get AWS Region from topic ARN
 	re := regexp.MustCompile(matchRegion)
 	match := re.FindStringSubmatch(topic)
 	if len(match) < 2 {
 		return nil, fmt.Errorf("unable to get region from topic arn: %s", topic)
 	}
 
+	// Load credentials: https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(match[1]))
 	if err != nil {
 		return nil, fmt.Errorf("unable to load SDK config: %v", err)
