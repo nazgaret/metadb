@@ -36,7 +36,7 @@ type Server struct {
 	TracingAgentURL string
 	ConsumerNum     int
 	MessageNum      int
-
+	SNSTopic        string
 }
 
 type Stop struct {

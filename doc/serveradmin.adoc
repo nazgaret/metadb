@@ -518,3 +518,15 @@ for example:
 ----
 metadb start -D data -l metadb.log --jaegertrace 127.0.0.1:4317
 ----
+
+=== SNS alerting
+
+Metadb has the capability to send alerts to an SNS topic when a snapshot 
+is completed and a log is written. AWS auth configurations cases described here:
+https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/[AWS Config].
+Topic ARN should be passed to the flag on `start` (optional):
+
+[source,bash]
+----
+metadb start -D data -l metadb.log --snstopic ARN
+----

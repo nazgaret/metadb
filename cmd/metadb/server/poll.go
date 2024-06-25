@@ -136,14 +136,14 @@ func outerPollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *
 	////
 
 	log.Debug("starting stream processor")
-	if err = pollLoop(ctx, cat, svr, spr); err != nil {
+	if err = pollLoop(ctx, cat, spr); err != nil {
 		//log.Error("%s", err)
 		return err
 	}
 	return nil
 }
 
-func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc) error {
+func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 	// var database0 *sysdb.DatabaseConnector = spr.databases[0]
 	//if database0.Type == "postgresql" && database0.DBPort == "" {
 	//	database0.DBPort = "5432"
@@ -274,7 +274,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 					default:
 					}
 
-					consCtx, spanConsume := svr.tracer.Start(ctx, fmt.Sprintf("consumer[%v]", index),
+					consCtx, spanConsume := spr.svr.tracer.Start(ctx, fmt.Sprintf("consumer[%v]", index),
 						trace.WithAttributes(
 							attribute.StringSlice("topics", topics),
 						),
@@ -282,7 +282,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 					cmdgraph := command.NewCommandGraph()
 
 					// Parse
-					_, spanParse := svr.tracer.Start(consCtx, "parse events")
+					_, spanParse := spr.svr.tracer.Start(consCtx, "parse events")
 					eventReadCount, err := parseChangeEvents(cat, dedup, consumers[index], cmdgraph, spr.schemaPassFilter,
 						spr.schemaStopFilter, spr.tableStopFilter, spr.source.TrimSchemaPrefix,
 						spr.source.AddSchemaPrefix, sourceFileScanner, spr.sourceLog, spr.svr.opt.MessageNum)
@@ -300,7 +300,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 
 					if eventReadCount > 0 {
 						//// Rewrite
-						_, spanRewrite := svr.tracer.Start(consCtx, "rewrite command graph")
+						_, spanRewrite := spr.svr.tracer.Start(consCtx, "rewrite command graph")
 						if err = rewriteCommandGraph(cmdgraph, spr.svr.opt.RewriteJSON); err != nil {
 							spanRewrite.RecordError(err)
 							spanRewrite.SetStatus(codes.Error, err.Error())
@@ -309,7 +309,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 						spanRewrite.End()
 
 						// Execute
-						_, spanExecute := svr.tracer.Start(consCtx, "execute command graph")
+						_, spanExecute := spr.svr.tracer.Start(consCtx, "execute command graph")
 						if err = execCommandGraph(ctx, cat, cmdgraph, spr.svr.dp, spr.source.Name, syncMode, dedup); err != nil {
 							spanExecute.RecordError(err)
 							spanExecute.SetStatus(codes.Error, err.Error())
@@ -321,7 +321,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 						spanExecute.End()
 
 						if sourceFileScanner == nil && !spr.svr.opt.NoKafkaCommit {
-							_, spanCommit := svr.tracer.Start(consCtx, "kafka commit")
+							_, spanCommit := spr.svr.tracer.Start(consCtx, "kafka commit")
 							_, err = consumers[index].Commit()
 							if err != nil {
 								e := err.(kafka.Error)
@@ -347,12 +347,15 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr *sproc
 					//}
 
 					// Check if resync snapshot may have completed.
-					_, spanSnapshot := svr.tracer.Start(consCtx, "check snapshot")
+					_, spanSnapshot := spr.svr.tracer.Start(consCtx, "check snapshot")
 					if syncMode != dsync.NoSync && spr.source.Status.Get() == status.ActiveStatus && cat.HoursSinceLastSnapshotRecord() > 3.0 {
 						msg := fmt.Sprintf("source %q snapshot complete (deadline exceeded); consider running \"metadb endsync\"",
 							spr.source.Name)
 						if dedup.Insert(msg) {
 							log.Info("%s", msg)
+							if err := spr.svr.notifier.Send(ctx, msg); err != nil {
+								log.Warning("failed to send notification: %w", err)
+							}
 						}
 						cat.ResetLastSnapshotRecord() // Sync timer.
 					}
