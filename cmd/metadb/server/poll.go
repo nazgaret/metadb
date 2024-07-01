@@ -568,6 +568,7 @@ func createKafkaConsumers(spr *sproc) ([]*kafka.Consumer, error) {
 			"group.id":             group,
 			"max.poll.interval.ms": spr.svr.db.MaxPollInterval,
 			"security.protocol":    spr.source.Security,
+			"isolation.level":      "read_uncommitted",
 		}
 		var consumer *kafka.Consumer
 		consumer, err = kafka.NewConsumer(config)
