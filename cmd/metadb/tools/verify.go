@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"fmt"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/metadb-project/metadb/cmd/metadb/dbx"
 )
@@ -25,7 +26,7 @@ func verifyTransformTableSize(dq dbx.Queryable, progress func(string)) error {
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("reading table names: %v", err)
+		return fmt.Errorf("reading table names: %w", err)
 	}
 	// Read table row oounts.
 	for t := range tableSizes {
@@ -51,7 +52,7 @@ func verifyTransformTableSize(dq dbx.Queryable, progress func(string)) error {
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("reading table relationships: %v", err)
+		return fmt.Errorf("reading table relationships: %w", err)
 	}
 	return nil
 }

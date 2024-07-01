@@ -7,6 +7,7 @@ import (
 	glog "log"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	fcolor "github.com/fatih/color"
@@ -33,6 +34,7 @@ type Log struct {
 //        logtypeTrace   = 5
 //)
 
+var once sync.Once
 var std Log
 
 //var csv *Log
@@ -40,13 +42,16 @@ var std Log
 var partitionsCreated = make(map[int]struct{})
 
 func Init(out io.Writer /*csvout io.Writer,*/, logDebug bool, logTrace bool) {
-	if out != nil {
-		std = Log{
-			log:      glog.New(out, "", 0),
-			logDebug: logDebug,
-			logTrace: logTrace,
+	once.Do(func() {
+		if out != nil {
+			std = Log{
+				log:      glog.New(out, "", 0),
+				logDebug: logDebug,
+				logTrace: logTrace,
+			}
 		}
-	}
+	})
+
 	//if csvout != nil {
 	//	csv = &Log{
 	//		log:      glog.New(csvout, "", 0),

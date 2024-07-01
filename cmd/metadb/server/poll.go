@@ -78,7 +78,7 @@ func goPollLoop(ctx context.Context, cat *catalog.Catalog, svr *server) {
 func logSyncMode(dq dbx.Queryable, source string) error {
 	mode, err := dsync.ReadSyncMode(dq, source)
 	if err != nil {
-		return fmt.Errorf("logging sync mode: %v", err)
+		return fmt.Errorf("logging sync mode: %w", err)
 	}
 	var modestr string
 	switch mode {
@@ -106,6 +106,13 @@ func launchPollLoop(ctx context.Context, cat *catalog.Catalog, svr *server, spr 
 	}()
 	reterr = outerPollLoop(ctx, cat, svr, spr)
 	if reterr != nil {
+		//
+		// TO DO: specify error message
+		//
+		// msg := reterr.Error()
+		// if err := spr.svr.notifier.Send(ctx, msg); err != nil {
+		// 	log.Warning("failed to send notification: %v", err)
+		// }
 		panic(reterr.Error())
 	}
 	return
@@ -289,7 +296,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 					if err != nil {
 						spanParse.RecordError(err)
 						spanParse.SetStatus(codes.Error, err.Error())
-						return fmt.Errorf("parser: %v", err)
+						return fmt.Errorf("parser: %w", err)
 					}
 					spanParse.AddEvent("eventReadCount", trace.WithAttributes(attribute.Int("count", eventReadCount)))
 					if firstEvent {
@@ -354,7 +361,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 						if dedup.Insert(msg) {
 							log.Info("%s", msg)
 							if err := spr.svr.notifier.Send(ctx, msg); err != nil {
-								log.Warning("failed to send notification: %w", err)
+								log.Warning("failed to send notification: %v", err)
 							}
 						}
 						cat.ResetLastSnapshotRecord() // Sync timer.
@@ -610,7 +617,7 @@ func parseChangeEvents(cat *catalog.Catalog, dedup *log.MessageSet, consumer *ka
 		var msg *kafka.Message
 		if sourceFileScanner == nil {
 			if msg, err = readChangeEvent(consumer, sourceLog, kafkaPollTimeout); err != nil {
-				return 0, fmt.Errorf("reading message from Kafka: %v", err)
+				return 0, fmt.Errorf("reading message from Kafka: %w", err)
 			}
 			if msg == nil { // Poll timeout is indicated by the nil return.
 				pollTimeoutCount++
@@ -628,7 +635,7 @@ func parseChangeEvents(cat *catalog.Catalog, dedup *log.MessageSet, consumer *ka
 		var ce *change.Event
 		if sourceFileScanner != nil {
 			if ce, err = readChangeEventFromFile(sourceFileScanner, sourceLog); err != nil {
-				return 0, fmt.Errorf("reading change event from file: %v", err)
+				return 0, fmt.Errorf("reading change event from file: %w", err)
 			}
 			if ce == nil && cmdgraph.Commands.Len() == 0 {
 				log.Info("finished processing source file")
@@ -648,7 +655,7 @@ func parseChangeEvents(cat *catalog.Catalog, dedup *log.MessageSet, consumer *ka
 			trimSchemaPrefix, addSchemaPrefix)
 		if err != nil {
 			log.Debug("%v", *ce)
-			return 0, fmt.Errorf("parsing command: %v", err)
+			return 0, fmt.Errorf("parsing command: %w", err)
 		}
 		if c == nil {
 			continue

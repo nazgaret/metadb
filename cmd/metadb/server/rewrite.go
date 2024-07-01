@@ -3,6 +3,7 @@ package server
 import (
 	"container/list"
 	"fmt"
+
 	"github.com/metadb-project/metadb/cmd/metadb/command"
 	"github.com/metadb-project/metadb/cmd/metadb/jsonx"
 	"github.com/metadb-project/metadb/cmd/metadb/log"
@@ -13,7 +14,7 @@ func rewriteCommandGraph(cmdgraph *command.CommandGraph, rewriteJSON bool) error
 		// Rewrite command
 		if err := rewriteCommand(e, rewriteJSON); err != nil {
 			log.Debug("%v", *(e.Value.(*command.Command)))
-			return fmt.Errorf("%v", err)
+			return fmt.Errorf("%w", err)
 		}
 	}
 	return nil
