@@ -530,3 +530,10 @@ SELECT *
     FROM folio_circulation.loan__t
     WHERE '2023-01-01' <= loan_date AND loan_date < '2024-01-01';
 ----
+
+==== Message consuming and DB connections
+
+Metadb creates pre-calculated number of consumers and DB connections for
+parallel processing messages. By default it has 20 consumers and db-connections
+and process 5000 messages per iteration. If instance has > 2 CPU cores and
+ >= 8 RAM, Metadb creates 40 consumers and connections and processes 10000 messages.
