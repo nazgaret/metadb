@@ -43,7 +43,6 @@ type server struct {
 	//dcsuper *pgx.Conn
 	dp       *pgxpool.Pool
 	tracer   trace.Tracer
-	finished chan struct{}
 	notifier *notifier.Notifier
 }
 
@@ -89,7 +88,6 @@ func Start(opt *option.Server, tracer trace.Tracer) error {
 	var svr = &server{
 		opt:      opt,
 		tracer:   tracer,
-		finished: make(chan struct{}),
 		notifier: ntf,
 	}
 
@@ -104,12 +102,12 @@ func loggingServer(svr *server) error {
 	var err error
 	svr.db, err = util.ReadConfigDatabase(svr.opt.Datadir)
 	if err != nil {
-		return fmt.Errorf("reading configuration file: %v", err)
+		return fmt.Errorf("reading configuration file: %w", err)
 	}
 
 	svr.dp, err = dbx.NewPool(context.TODO(), svr.db.ConnString(svr.db.User, svr.db.Password))
 	if err != nil {
-		return fmt.Errorf("creating database connection pool: %v", err)
+		return fmt.Errorf("creating database connection pool: %w", err)
 	}
 	defer svr.dp.Close()
 
@@ -134,7 +132,7 @@ func runServer(svr *server, cat *catalog.Catalog) error {
 	if svr.db.DBName != "metadb" && !strings.HasPrefix(svr.db.DBName, "metadb_") {
 		log.Info("database has nonstandard name %q", svr.db.DBName)
 	}
-	log.Debug("Memory Limit: %v; Consumers: %v; CheckpointSegmentSize: %v;", svr.opt.MemoryLimit, svr.db.CheckpointSegmentSize)
+	log.Debug("memory limit: %v; consumers: %v; checkpointSegmentSize: %v;", svr.opt.MemoryLimit, svr.db.CheckpointSegmentSize)
 	setMemoryLimit(svr.opt.MemoryLimit)
 	if svr.opt.NoTLS {
 		log.Warning("TLS disabled for all client connections")
@@ -206,11 +204,11 @@ func mainServer(svr *server, cat *catalog.Catalog) error {
 
 	/*	folio, err := isFolioModulePresent(svr.db)
 		if err != nil {
-			return fmt.Errorf("checking for folio module: %v", err)
+			return fmt.Errorf("checking for folio module: %w", err)
 		}
 		reshare, err := isReshareModulePresent(svr.db)
 		if err != nil {
-			return fmt.Errorf("checking for reshare module: %v", err)
+			return fmt.Errorf("checking for reshare module: %w", err)
 		}
 		source, err := util.GetOneSource(svr.dp)
 		if err != nil {
@@ -221,8 +219,6 @@ func mainServer(svr *server, cat *catalog.Catalog) error {
 
 	for {
 		if process.Stop() {
-			cancel()
-			<-svr.finished // waiting until all consuming processes ends
 			break
 		}
 		time.Sleep(5 * time.Second)
@@ -234,7 +230,7 @@ func mainServer(svr *server, cat *catalog.Catalog) error {
 func isFolioModulePresent(db *dbx.DB) (bool, error) {
 	dc, err := db.Connect()
 	if err != nil {
-		return false, fmt.Errorf("connecting to database: %v", err)
+		return false, fmt.Errorf("connecting to database: %w", err)
 	}
 	defer dbx.Close(dc)
 	q := "SELECT 1 FROM metadb.source WHERE module='folio' LIMIT 1"
@@ -244,7 +240,7 @@ func isFolioModulePresent(db *dbx.DB) (bool, error) {
 	case errors.Is(err, pgx.ErrNoRows):
 		return false, nil
 	case err != nil:
-		return false, fmt.Errorf("selecting module: %v", err)
+		return false, fmt.Errorf("selecting module: %w", err)
 	default:
 		return true, nil
 	}
@@ -253,7 +249,7 @@ func isFolioModulePresent(db *dbx.DB) (bool, error) {
 func isReshareModulePresent(db *dbx.DB) (bool, error) {
 	dc, err := db.Connect()
 	if err != nil {
-		return false, fmt.Errorf("connecting to database: %v", err)
+		return false, fmt.Errorf("connecting to database: %w", err)
 	}
 	defer dbx.Close(dc)
 	q := "SELECT 1 FROM metadb.source WHERE module='reshare' LIMIT 1"
@@ -263,7 +259,7 @@ func isReshareModulePresent(db *dbx.DB) (bool, error) {
 	case errors.Is(err, pgx.ErrNoRows):
 		return false, nil
 	case err != nil:
-		return false, fmt.Errorf("selecting module: %v", err)
+		return false, fmt.Errorf("selecting module: %w", err)
 	default:
 		return true, nil
 	}
@@ -299,7 +295,7 @@ func checkTimeDailyMaintenance(datadir string, db dbx.DB, dp *pgxpool.Pool, cat 
 	case errors.Is(err, pgx.ErrNoRows):
 		fallthrough
 	case err != nil:
-		return fmt.Errorf("checking maintenance time: %v", err)
+		return fmt.Errorf("checking maintenance time: %w", err)
 	default:
 		if !overdue {
 			return nil
@@ -372,7 +368,7 @@ func checkTimeDailyMaintenance(datadir string, db dbx.DB, dp *pgxpool.Pool, cat 
 		"SET next_maintenance_time = next_maintenance_time +" +
 		" make_interval(0, 0, 0, (EXTRACT(DAY FROM (CURRENT_TIMESTAMP - next_maintenance_time)) + 1)::integer)"
 	if _, err = dp.Exec(context.TODO(), q); err != nil {
-		return fmt.Errorf("error updating maintenance time: %v", err)
+		return fmt.Errorf("error updating maintenance time: %w", err)
 	}
 
 	// if err = vacuumAll(db, cat, folio); err != nil {

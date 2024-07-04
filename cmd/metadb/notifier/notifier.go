@@ -34,7 +34,7 @@ func Init(topic string) (*Notifier, error) {
 	// Load credentials: https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(match[1]))
 	if err != nil {
-		return nil, fmt.Errorf("unable to load SDK config: %v", err)
+		return nil, fmt.Errorf("unable to load SDK config: %w", err)
 	}
 
 	snsClient := sns.NewFromConfig(cfg)

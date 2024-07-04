@@ -29,11 +29,6 @@ import (
 )
 
 func goPollLoop(ctx context.Context, cat *catalog.Catalog, svr *server) {
-	// runs when all consumers finished their work after stop signal
-	defer func() {
-		svr.finished <- struct{}{}
-	}()
-
 	if svr.opt.NoKafkaCommit {
 		log.Info("Kafka commits disabled")
 	}
@@ -67,6 +62,13 @@ func goPollLoop(ctx context.Context, cat *catalog.Catalog, svr *server) {
 		}
 		spr.source.Status.Error()
 		spr.databases[0].Status.Error()
+
+		// alerting to sns if configured
+		msg := fmt.Sprintf("metadb stopped source %q consuming with error: %v", spr.source.Name, err)
+		if err := spr.svr.notifier.Send(ctx, msg); err != nil {
+			log.Warning("failed to send notification: %w", err)
+		}
+
 		time.Sleep(24 * time.Hour)
 	}
 }
@@ -74,7 +76,7 @@ func goPollLoop(ctx context.Context, cat *catalog.Catalog, svr *server) {
 func logSyncMode(dq dbx.Queryable, source string) error {
 	mode, err := dsync.ReadSyncMode(dq, source)
 	if err != nil {
-		return fmt.Errorf("logging sync mode: %v", err)
+		return fmt.Errorf("logging sync mode: %w", err)
 	}
 	var modestr string
 	switch mode {
@@ -435,7 +437,7 @@ func parseChangeEvents(cat *catalog.Catalog, dedup *log.MessageSet, consumer *ka
 		var err error
 		var msg *kafka.Message
 		if msg, err = readChangeEvent(consumer, sourceLog, kafkaPollTimeout); err != nil {
-			return 0, fmt.Errorf("reading message from Kafka: %v", err)
+			return 0, fmt.Errorf("reading message from Kafka: %w", err)
 		}
 		if msg == nil { // Poll timeout is indicated by the nil return.
 			pollTimeoutCount++
@@ -460,7 +462,7 @@ func parseChangeEvents(cat *catalog.Catalog, dedup *log.MessageSet, consumer *ka
 			trimSchemaPrefix, addSchemaPrefix)
 		if err != nil {
 			log.Debug("%v", *ce)
-			return 0, fmt.Errorf("parsing command: %v", err)
+			return 0, fmt.Errorf("parsing command: %w", err)
 		}
 		if c == nil {
 			continue
