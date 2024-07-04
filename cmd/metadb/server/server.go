@@ -22,12 +22,14 @@ import (
 	"github.com/metadb-project/metadb/cmd/metadb/libpq"
 	"github.com/metadb-project/metadb/cmd/metadb/log"
 	"github.com/metadb-project/metadb/cmd/metadb/marctab"
+	"github.com/metadb-project/metadb/cmd/metadb/notifier"
 	"github.com/metadb-project/metadb/cmd/metadb/option"
 	"github.com/metadb-project/metadb/cmd/metadb/process"
 	"github.com/metadb-project/metadb/cmd/metadb/runsql"
 	"github.com/metadb-project/metadb/cmd/metadb/sqlfunc"
 	"github.com/metadb-project/metadb/cmd/metadb/sysdb"
 	"github.com/metadb-project/metadb/cmd/metadb/util"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // The server thread handling needs to be reworked.  It currently runs an HTTP
@@ -39,7 +41,10 @@ type server struct {
 	db    *dbx.DB
 	//dc      *pgx.Conn
 	//dcsuper *pgx.Conn
-	dp *pgxpool.Pool
+	dp       *pgxpool.Pool
+	tracer   trace.Tracer
+	finished chan struct{}
+	notifier *notifier.Notifier
 }
 
 // serverstate is shared between goroutines.
@@ -60,7 +65,7 @@ type sproc struct {
 	svr              *server
 }
 
-func Start(opt *option.Server) error {
+func Start(opt *option.Server, tracer trace.Tracer) error {
 	// Check if server is already running.
 	running, pid, err := process.IsServerRunning(opt.Datadir)
 	if err != nil {
@@ -76,7 +81,18 @@ func Start(opt *option.Server) error {
 	}
 	defer process.RemovePIDFile(opt.Datadir)
 
-	var svr = &server{opt: opt}
+	ntf, err := notifier.Init(opt.SNSTopic)
+	if err != nil {
+		return err
+	}
+
+	var svr = &server{
+		opt:      opt,
+		tracer:   tracer,
+		finished: make(chan struct{}),
+		notifier: ntf,
+	}
+
 	if err = loggingServer(svr); err != nil {
 		return err
 	}
@@ -118,6 +134,7 @@ func runServer(svr *server, cat *catalog.Catalog) error {
 	if svr.db.DBName != "metadb" && !strings.HasPrefix(svr.db.DBName, "metadb_") {
 		log.Info("database has nonstandard name %q", svr.db.DBName)
 	}
+	log.Debug("Memory Limit: %v; Consumers: %v; CheckpointSegmentSize: %v;", svr.opt.MemoryLimit, svr.db.CheckpointSegmentSize)
 	setMemoryLimit(svr.opt.MemoryLimit)
 	if svr.opt.NoTLS {
 		log.Warning("TLS disabled for all client connections")
@@ -204,6 +221,8 @@ func mainServer(svr *server, cat *catalog.Catalog) error {
 
 	for {
 		if process.Stop() {
+			cancel()
+			<-svr.finished // waiting until all consuming processes ends
 			break
 		}
 		time.Sleep(5 * time.Second)
