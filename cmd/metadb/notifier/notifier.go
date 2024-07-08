@@ -2,6 +2,7 @@ package notifier
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 
@@ -12,20 +13,35 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 )
 
-const matchRegion = `^(?:[^:]+:){3}([^:]+).*`
+const matchSNSRegion = `^(?:[^:]+:){3}([^:]+).*`
 
-type Notifier struct {
+type Notifier interface {
+	Send(ctx context.Context, message string) error
+}
+
+func NewNoop() *noopNotifier {
+	return &noopNotifier{}
+}
+
+type noopNotifier struct {
+}
+
+func (n *noopNotifier) Send(ctx context.Context, message string) error {
+	return nil
+}
+
+type snsNotifier struct {
 	client *sns.Client
 	topic  string
 }
 
-func Init(topic string) (*Notifier, error) {
+func NewSNS(topic string) (*snsNotifier, error) {
 	if len(topic) == 0 {
-		return nil, nil
+		return nil, errors.New("no topic provided for SNS")
 	}
 
 	// Get AWS Region from topic ARN
-	re := regexp.MustCompile(matchRegion)
+	re := regexp.MustCompile(matchSNSRegion)
 	match := re.FindStringSubmatch(topic)
 	if len(match) < 2 {
 		return nil, fmt.Errorf("unable to get region from topic arn: %s", topic)
@@ -38,10 +54,10 @@ func Init(topic string) (*Notifier, error) {
 	}
 
 	snsClient := sns.NewFromConfig(cfg)
-	return &Notifier{snsClient, topic}, nil
+	return &snsNotifier{snsClient, topic}, nil
 }
 
-func (n *Notifier) Send(ctx context.Context, message string) error {
+func (n *snsNotifier) Send(ctx context.Context, message string) error {
 	if n == nil || n.client == nil {
 		return nil
 	}
@@ -58,3 +74,20 @@ func (n *Notifier) Send(ctx context.Context, message string) error {
 
 	return nil
 }
+
+//
+// Example of creating new implementation of Notifier:
+//
+// func NewFoo() *fooNotifier {
+//	// init foo client
+// 	return &fooNotifier{}
+// }
+//
+// type fooNotifier struct {
+//	// foo client
+// }
+//
+// func (n *fooNotifier) Send(ctx context.Context, message string) error {
+//  // sending notification using foo client
+// 	return nil
+// }

@@ -43,7 +43,7 @@ type server struct {
 	//dcsuper *pgx.Conn
 	dp       *pgxpool.Pool
 	tracer   trace.Tracer
-	notifier *notifier.Notifier
+	notifier notifier.Notifier
 }
 
 // serverstate is shared between goroutines.
@@ -64,7 +64,7 @@ type sproc struct {
 	svr              *server
 }
 
-func Start(opt *option.Server, tracer trace.Tracer) error {
+func Start(opt *option.Server, ntf notifier.Notifier, tracer trace.Tracer) error {
 	// Check if server is already running.
 	running, pid, err := process.IsServerRunning(opt.Datadir)
 	if err != nil {
@@ -79,11 +79,6 @@ func Start(opt *option.Server, tracer trace.Tracer) error {
 		return err
 	}
 	defer process.RemovePIDFile(opt.Datadir)
-
-	ntf, err := notifier.Init(opt.SNSTopic)
-	if err != nil {
-		return err
-	}
 
 	var svr = &server{
 		opt:      opt,

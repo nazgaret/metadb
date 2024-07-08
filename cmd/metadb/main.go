@@ -10,6 +10,7 @@ import (
 	"github.com/metadb-project/metadb/cmd/metadb/dsync"
 	"github.com/metadb-project/metadb/cmd/metadb/initsys"
 	"github.com/metadb-project/metadb/cmd/metadb/log"
+	"github.com/metadb-project/metadb/cmd/metadb/notifier"
 	"github.com/metadb-project/metadb/cmd/metadb/option"
 	"github.com/metadb-project/metadb/cmd/metadb/server"
 	"github.com/metadb-project/metadb/cmd/metadb/stop"
@@ -137,9 +138,19 @@ func run() error {
 			}
 			defer flush()
 
+			var ntf notifier.Notifier
+			if len(serverOpt.SNSTopic) != 0 {
+				ntf, err = notifier.NewSNS(serverOpt.SNSTopic)
+				if err != nil {
+					return err
+				}
+			} else {
+				ntf = notifier.NewNoop()
+			}
+
 			serverOpt.RewriteJSON = rewriteJSON == "1"
 			serverOpt.Listen = "127.0.0.1"
-			if err = server.Start(&serverOpt, t); err != nil {
+			if err = server.Start(&serverOpt, ntf, t); err != nil {
 				return fatal(err, logf, csvlogf)
 			}
 			return nil
