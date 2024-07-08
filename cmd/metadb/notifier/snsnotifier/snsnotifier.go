@@ -1,10 +1,11 @@
-package notifier
+package snsnotifier
 
 import (
 	"context"
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/metadb-project/metadb/cmd/metadb/log"
 
@@ -14,21 +15,7 @@ import (
 )
 
 const matchSNSRegion = `^(?:[^:]+:){3}([^:]+).*`
-
-type Notifier interface {
-	Send(ctx context.Context, message string) error
-}
-
-func NewNoop() *noopNotifier {
-	return &noopNotifier{}
-}
-
-type noopNotifier struct {
-}
-
-func (n *noopNotifier) Send(ctx context.Context, message string) error {
-	return nil
-}
+const snsTopicPrefix = "arn:aws:sns:"
 
 type snsNotifier struct {
 	client *sns.Client
@@ -57,7 +44,7 @@ func NewSNS(topic string) (*snsNotifier, error) {
 	return &snsNotifier{snsClient, topic}, nil
 }
 
-func (n *snsNotifier) Send(ctx context.Context, message string) error {
+func (n *snsNotifier) Notify(ctx context.Context, message string) error {
 	if n == nil || n.client == nil {
 		return nil
 	}
@@ -75,19 +62,6 @@ func (n *snsNotifier) Send(ctx context.Context, message string) error {
 	return nil
 }
 
-//
-// Example of creating new implementation of Notifier:
-//
-// func NewFoo() *fooNotifier {
-//	// init foo client
-// 	return &fooNotifier{}
-// }
-//
-// type fooNotifier struct {
-//	// foo client
-// }
-//
-// func (n *fooNotifier) Send(ctx context.Context, message string) error {
-//  // sending notification using foo client
-// 	return nil
-// }
+func IsSNSTopic(s string) bool {
+	return strings.HasPrefix(s, snsTopicPrefix)
+}
