@@ -22,7 +22,6 @@ import (
 	"github.com/metadb-project/metadb/cmd/metadb/libpq"
 	"github.com/metadb-project/metadb/cmd/metadb/log"
 	"github.com/metadb-project/metadb/cmd/metadb/marctab"
-	"github.com/metadb-project/metadb/cmd/metadb/notifier"
 	"github.com/metadb-project/metadb/cmd/metadb/option"
 	"github.com/metadb-project/metadb/cmd/metadb/process"
 	"github.com/metadb-project/metadb/cmd/metadb/runsql"
@@ -31,6 +30,10 @@ import (
 	"github.com/metadb-project/metadb/cmd/metadb/util"
 	"go.opentelemetry.io/otel/trace"
 )
+
+type Notifier interface {
+	Notify(ctx context.Context, message string) error
+}
 
 // The server thread handling needs to be reworked.  It currently runs an HTTP
 // server and a single poll loop in two goroutines.
@@ -43,7 +46,7 @@ type server struct {
 	//dcsuper *pgx.Conn
 	dp       *pgxpool.Pool
 	tracer   trace.Tracer
-	notifier *notifier.Notifier
+	notifier Notifier
 }
 
 // serverstate is shared between goroutines.
@@ -64,7 +67,7 @@ type sproc struct {
 	svr              *server
 }
 
-func Start(opt *option.Server, tracer trace.Tracer) error {
+func Start(opt *option.Server, ntf Notifier, tracer trace.Tracer) error {
 	// Check if server is already running.
 	running, pid, err := process.IsServerRunning(opt.Datadir)
 	if err != nil {
@@ -79,11 +82,6 @@ func Start(opt *option.Server, tracer trace.Tracer) error {
 		return err
 	}
 	defer process.RemovePIDFile(opt.Datadir)
-
-	ntf, err := notifier.Init(opt.SNSTopic)
-	if err != nil {
-		return err
-	}
 
 	var svr = &server{
 		opt:      opt,
