@@ -133,12 +133,14 @@ func run() error {
 			//        serverOpt.Port = metadbAdminPort
 			//}
 
+			// Init Jaeger tracer and flush function
 			t, flush, err := tracer.Init(serverOpt.TracingAgentURL)
 			if err != nil {
 				return err
 			}
 			defer flush()
 
+			// Setup notifier if specified
 			ntf, err := parseNotifier(serverOpt.NotifierConfigString)
 			if err != nil {
 				return err
@@ -565,6 +567,7 @@ func dirFlag(cmd *cobra.Command, datadir *string) string {
 func memoryLimitFlag(cmd *cobra.Command, memoryLimit *float64) string {
 	if cmd != nil {
 		cmd.Flags().Float64Var(memoryLimit, "memlimit", 0, "")
+		// Setup default memory limit
 		if *memoryLimit == 0 {
 			m, err := mem.VirtualMemory()
 			if err == nil {
@@ -658,6 +661,7 @@ func validateServerOptions(opt *option.Server) error {
 	return nil
 }
 
+// Creating a notifier depends on the provider.
 func parseNotifier(ntfString string) (server.Notifier, error) {
 	switch {
 	case snsnotifier.IsSNSTopic(ntfString):

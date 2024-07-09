@@ -4,6 +4,8 @@ import (
 	"context"
 )
 
+// mockNotifier used when notifier is not specify
+
 func NewMock() *mockNotifier {
 	return &mockNotifier{}
 }

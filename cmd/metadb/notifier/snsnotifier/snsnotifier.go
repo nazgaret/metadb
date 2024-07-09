@@ -62,6 +62,7 @@ func (n *snsNotifier) Notify(ctx context.Context, message string) error {
 	return nil
 }
 
+// Check if notification string is SNS topic
 func IsSNSTopic(s string) bool {
 	return strings.HasPrefix(s, snsTopicPrefix)
 }
