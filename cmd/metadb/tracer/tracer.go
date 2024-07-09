@@ -18,6 +18,7 @@ const serviceName = "metadb"
 
 type Flush func() error
 
+// Init OTLP connection with Jaeger and create Tracer
 func Init(otlpEndpoint string) (trace.Tracer, Flush, error) {
 	ctx := context.Background()
 	var tracerProvider trace.TracerProvider
@@ -25,6 +26,7 @@ func Init(otlpEndpoint string) (trace.Tracer, Flush, error) {
 	var err error
 
 	if len(otlpEndpoint) > 0 {
+		// grpc connection
 		conn, err = grpc.Dial(otlpEndpoint,
 			// Note the use of insecure transport here. TLS is recommended in production.
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -33,11 +35,12 @@ func Init(otlpEndpoint string) (trace.Tracer, Flush, error) {
 		if err != nil {
 			return nil, flush(tracerProvider, conn), err
 		}
+		// create otlp exporter
 		exp, err := otlptracegrpc.New(ctx, otlptracegrpc.WithGRPCConn(conn))
 		if err != nil {
 			return nil, flush(tracerProvider, conn), err
 		}
-
+		// create resource
 		r, err := resource.Merge(
 			resource.Default(),
 			resource.NewWithAttributes(
@@ -48,7 +51,7 @@ func Init(otlpEndpoint string) (trace.Tracer, Flush, error) {
 		if err != nil {
 			return nil, flush(tracerProvider, conn), err
 		}
-
+		// init tracer provider
 		tracerProvider = sdktrace.NewTracerProvider(
 			sdktrace.WithBatcher(exp),
 			sdktrace.WithResource(r),
@@ -57,16 +60,19 @@ func Init(otlpEndpoint string) (trace.Tracer, Flush, error) {
 			),
 		)
 	} else {
+		// mock tracer provider if not specified
 		tracerProvider = noop.NewTracerProvider()
 	}
 
 	otel.SetTracerProvider(tracerProvider)
 
+	// get tracer
 	tracer := tracerProvider.Tracer("metadb_start")
 
 	return tracer, flush(tracerProvider, conn), nil
 }
 
+// Close connection with tracing agent
 func flush(tracerProvider trace.TracerProvider, grpcConn *grpc.ClientConn) Flush {
 	return func() error {
 		if tp, ok := tracerProvider.(*sdktrace.TracerProvider); ok {

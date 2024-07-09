@@ -31,6 +31,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// Notifier interface
 type Notifier interface {
 	Notify(ctx context.Context, message string) error
 }
