@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 set -e
 
 fast='false'
@@ -57,6 +57,10 @@ done
 
 if $verbose; then
     v='-v'
+fi
+
+if [[ -v METADB_FOLIO ]]; then
+    echo "build.sh: using folio reference \"$METADB_FOLIO\"" 1>&2
 fi
 
 if $experiment; then
