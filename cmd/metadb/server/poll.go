@@ -234,6 +234,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 		// A custom partitioner could attempt to balance the consumers.
 		"partition.assignment.strategy": "roundrobin",
 		"security.protocol":             spr.source.Security,
+		"isolation.level":               "read_uncommitted", // for tiered storage
 	}
 	// During normal operation, we run single-threaded to give priority to user queries.
 	// During a sync process, we enable concurrency.
