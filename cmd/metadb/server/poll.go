@@ -283,6 +283,7 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 	var firstEvent int32 // Atomic used to log that data have been received
 	atomic.StoreInt32(&firstEvent, int32(1))
 	for {
+		log.Info("start consuming cycle")
 		var waitStreamProcs sync.WaitGroup
 		errStrings := make([]string, consumersN)
 		atomic.StoreInt32(&rebalanceFlag, int32(0)) // Reset
@@ -293,13 +294,14 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 				processStream(thread, consumer, ctx, cat, spr, syncMode, dedup, rebalanceFlag, firstEvent, errString)
 			}(i, consumers[i], ctx, cat, spr, syncMode, dedup, &rebalanceFlag, &firstEvent, &(errStrings[i]))
 		}
-
+		log.Info("wait group wait")
 		waitStreamProcs.Wait() // Synchronize the threads
 
 		// TODO This error handling is not quite right.
 		for i := 0; i < consumersN; i++ {
 			if errStrings[i] != "" {
 				spr.source.Status.Error()
+				log.Error(errStrings[i])
 				return errors.New(errStrings[i])
 			}
 		}
@@ -371,6 +373,7 @@ func processStream(thread int, consumer *kafka.Consumer, ctx context.Context, ca
 
 		if atomic.LoadInt32(rebalanceFlag) == 1 { // Exit thread on rebalance
 			log.Trace("[%d] rebalance", thread)
+			log.Error("[%d] rebalance", thread)
 			break
 		}
 	}
