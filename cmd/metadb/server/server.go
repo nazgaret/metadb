@@ -131,7 +131,7 @@ func runServer(svr *server, cat *catalog.Catalog) error {
 	if svr.db.DBName != "metadb" && !strings.HasPrefix(svr.db.DBName, "metadb_") {
 		log.Info("database has nonstandard name %q", svr.db.DBName)
 	}
-	log.Debug("memory limit: %v; consumers: %v; checkpointSegmentSize: %v;", svr.opt.MemoryLimit, svr.db.CheckpointSegmentSize)
+	log.Debug("memory limit: %v; checkpointSegmentSize: %v;", svr.opt.MemoryLimit, svr.db.CheckpointSegmentSize)
 	setMemoryLimit(svr.opt.MemoryLimit)
 	if svr.opt.NoTLS {
 		log.Warning("TLS disabled for all client connections")
