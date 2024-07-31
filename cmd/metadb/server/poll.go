@@ -399,6 +399,7 @@ func processStream(thread int, consumer *kafka.Consumer, ctx context.Context, ca
 			msg := fmt.Sprintf("source %q snapshot complete (deadline exceeded); consider running \"metadb endsync\"",
 				spr.source.Name)
 			if dedup.Insert(msg) {
+				spr.databases[0].Status.Completed()
 				log.Info("%s", msg)
 				//alerting to sns if configured
 				if err := spr.svr.notifier.Notify(ctx, msg); err != nil {
