@@ -34,6 +34,7 @@ type Server struct {
 	MemoryLimit          float64
 	TracingAgentURL      string
 	NotifierConfigString string
+	ReadUncommited       bool
 }
 
 type Stop struct {

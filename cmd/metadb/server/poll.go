@@ -245,6 +245,9 @@ func pollLoop(ctx context.Context, cat *catalog.Catalog, spr *sproc) error {
 		"partition.assignment.strategy": "roundrobin",
 		"security.protocol":             spr.source.Security,
 	}
+	if spr.svr.opt.ReadUncommited {
+		config.SetKey("isolation.level", "read_uncommitted")
+	}
 	// During normal operation, we run single-threaded to give priority to user queries.
 	// During a sync process, we enable concurrency.
 	// This could be made configurable.

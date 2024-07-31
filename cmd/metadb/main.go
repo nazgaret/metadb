@@ -170,6 +170,7 @@ func run() error {
 	_ = memoryLimitFlag(cmdStart, &serverOpt.MemoryLimit)
 	_ = traceJaegerFlag(cmdStart, &serverOpt.TracingAgentURL)
 	_ = notifierFlag(cmdStart, &serverOpt.NotifierConfigString)
+	_ = readUncommitedFlag(cmdStart, &serverOpt.ReadUncommited)
 
 	var cmdStop = &cobra.Command{
 		Use: "stop",
@@ -341,6 +342,7 @@ func help(cmd *cobra.Command, commandLine []string) {
 			memoryLimitFlag(nil, nil) +
 			traceJaegerFlag(nil, nil) +
 			notifierFlag(nil, nil) +
+			readUncommitedFlag(nil, nil) +
 			"")
 	case "stop":
 		fmt.Printf("" +
@@ -586,8 +588,17 @@ func notifierFlag(cmd *cobra.Command, notifierConfigString *string) string {
 		cmd.Flags().StringVar(notifierConfigString, "notifierstring", "", "")
 	}
 	return "" +
-		"      --notifierstring      - string for configuring notifier\n" +
+		"      --notifierstring      - String for configuring notifier\n" +
 		"                              value depends on provider (topic,connstring,JSON,etc)\n"
+}
+
+func readUncommitedFlag(cmd *cobra.Command, readUncommited *bool) string {
+	if cmd != nil {
+		cmd.Flags().BoolVar(readUncommited, "readuncommited", false, "")
+	}
+	return "" +
+		"      --readuncommited      - Set the read_uncommitted isolation level for Kafka consumers.\n" +
+		"							   Requirement for MSK Tiered Storage\n"
 }
 
 func setupLog(logfile, csvlogfile string, debug bool, trace bool) (*os.File, *os.File, error) {
